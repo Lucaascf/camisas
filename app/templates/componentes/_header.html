@@ -1,0 +1,27 @@
+<!-- ==================== HEADER ==================== -->
+<header class="header">
+    <div class="header__top">
+        Frete grátis para compras acima de R$ 499
+    </div>
+    <div class="header__main">
+        <a href="{{ url_for('main.home') }}" class="header__logo">FERRATO</a>
+        <nav class="header__nav">
+            <a href="#" class="header__nav-link">Camisas Sociais</a>
+            <a href="#" class="header__nav-link">Polo</a>
+            <a href="#" class="header__nav-link">Casual</a>
+            <a href="#" class="header__nav-link">Acessórios</a>
+        </nav>
+        <div class="header__actions">
+            <button class="header__action-btn" aria-label="Buscar">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            </button>
+            <button class="header__action-btn" aria-label="Minha conta">
+                <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
+            <button class="header__action-btn" aria-label="Carrinho">
+                <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                <span class="header__cart-count">2</span>
+            </button>
+        </div>
+    </div>
+</header>
