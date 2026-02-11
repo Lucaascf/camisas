@@ -76,6 +76,16 @@ class Product(db.Model):
             return 0
         return round((1 - self.preco_promocional / self.preco) * 100)
 
+    @property
+    def imagem_principal(self):
+        """Retorna a URL da imagem principal do produto."""
+        if self.imagens:
+            # Se há imagens no banco, retorna a URL da primeira (ordenada)
+            primeira = sorted(self.imagens, key=lambda x: x.ordem)[0]
+            return f'/produto/imagem/{primeira.id}'
+        # Fallback para imagem_url (compatibilidade com produtos antigos)
+        return self.imagem_url
+
     def __repr__(self):
         return f'<Product {self.nome}>'
 
@@ -145,3 +155,20 @@ class OrderItem(db.Model):
 
     def __repr__(self):
         return f'<OrderItem order={self.order_id} product={self.product_id}>'
+
+
+class ProductImage(db.Model):
+    """Imagem de produto armazenada no banco de dados."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    mimetype = db.Column(db.String(50), nullable=False)
+    data = db.Column(db.LargeBinary, nullable=False)
+    ordem = db.Column(db.Integer, default=0)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    product = db.relationship('Product', backref='imagens', lazy=True)
+
+    def __repr__(self):
+        return f'<ProductImage {self.filename} for product {self.product_id}>'

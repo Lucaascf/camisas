@@ -46,7 +46,7 @@
                 <span>R$ <span id="cart-total">{{ "%.2f"|format(total)|replace('.', ',') }}</span></span>
             </div>
             <a href="{{ url_for('shop.listagem') }}" class="cart__continue-btn">Continuar Comprando</a>
-            <button class="cart__checkout-btn" disabled>Finalizar Compra</button>
+            <a href="{{ url_for('cart.checkout') }}" class="cart__checkout-btn">Finalizar Compra</a>
         </div>
     </section>
     {% else %}

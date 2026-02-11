@@ -15,15 +15,32 @@
     </section>
 
     <section class="product-detail">
-        <div class="product-detail__image">
-            <div class="product-card__placeholder">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <span>Foto</span>
+        <div class="product-detail__gallery">
+            <div class="product-detail__image">
+                {% if produto.imagem_principal %}
+                    <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" class="product-detail__image-img" id="imagem-principal">
+                {% else %}
+                    <div class="product-card__placeholder">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <span>Foto</span>
+                    </div>
+                {% endif %}
+                {% if produto.novo %}
+                <span class="product-card__badge product-card__badge--new">Novo</span>
+                {% elif produto.em_promocao %}
+                <span class="product-card__badge product-card__badge--sale">-{{ produto.percentual_desconto }}%</span>
+                {% endif %}
             </div>
-            {% if produto.novo %}
-            <span class="product-card__badge product-card__badge--new">Novo</span>
-            {% elif produto.em_promocao %}
-            <span class="product-card__badge product-card__badge--sale">-{{ produto.percentual_desconto }}%</span>
+
+            {% if produto.imagens and produto.imagens|length > 1 %}
+            <div class="product-detail__thumbnails">
+                {% for imagem in produto.imagens|sort(attribute='ordem') %}
+                <img src="{{ url_for('main.servir_imagem', image_id=imagem.id) }}"
+                     alt="{{ produto.nome }}"
+                     class="product-detail__thumbnail {% if loop.first %}active{% endif %}"
+                     onclick="trocarImagem('{{ url_for('main.servir_imagem', image_id=imagem.id) }}', this)">
+                {% endfor %}
+            </div>
             {% endif %}
         </div>
 
@@ -60,6 +77,26 @@
 
 {% block scripts %}
 <script>
+// Trocar imagem principal
+function trocarImagem(url, thumbnail) {
+    var imagemPrincipal = document.getElementById('imagem-principal');
+    if (imagemPrincipal) {
+        imagemPrincipal.src = url;
+    }
+
+    // Remover active de todos os thumbnails
+    var thumbnails = document.querySelectorAll('.product-detail__thumbnail');
+    thumbnails.forEach(function(t) {
+        t.classList.remove('active');
+    });
+
+    // Adicionar active ao thumbnail clicado
+    if (thumbnail) {
+        thumbnail.classList.add('active');
+    }
+}
+
+// Adicionar ao carrinho
 (function() {
     var btn = document.querySelector('.product-detail__add-btn');
     if (!btn || btn.disabled) return;

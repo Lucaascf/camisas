@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Pedido Confirmado — FERRATO{% endblock %}
+
+{% block conteudo %}
+
+    <section class="confirmation">
+        <div class="confirmation__container">
+            <!-- Ícone de sucesso -->
+            <div class="confirmation__icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="8 12 11 15 16 9"/>
+                </svg>
+            </div>
+
+            <h1 class="confirmation__title">Pedido Realizado com Sucesso!</h1>
+            <p class="confirmation__subtitle">Obrigado pela sua compra, {{ pedido.nome }}.</p>
+
+            <!-- Detalhes do pedido -->
+            <div class="confirmation__details">
+                <div class="confirmation__detail-row">
+                    <span class="confirmation__detail-label">Número do Pedido:</span>
+                    <span class="confirmation__detail-value">#{{ pedido.id }}</span>
+                </div>
+                <div class="confirmation__detail-row">
+                    <span class="confirmation__detail-label">Data:</span>
+                    <span class="confirmation__detail-value">{{ pedido.criado_em.strftime('%d/%m/%Y às %H:%M') }}</span>
+                </div>
+                <div class="confirmation__detail-row">
+                    <span class="confirmation__detail-label">Total:</span>
+                    <span class="confirmation__detail-value">R$ {{ "%.2f"|format(pedido.total)|replace('.', ',') }}</span>
+                </div>
+                <div class="confirmation__detail-row">
+                    <span class="confirmation__detail-label">Status:</span>
+                    <span class="confirmation__detail-value confirmation__status">{{ pedido.status|title }}</span>
+                </div>
+            </div>
+
+            <!-- Itens do pedido -->
+            <div class="confirmation__items">
+                <h2 class="confirmation__items-title">Itens do Pedido</h2>
+                {% for item in pedido.items %}
+                <div class="confirmation__item">
+                    <div class="confirmation__item-image">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    </div>
+                    <div class="confirmation__item-info">
+                        <p class="confirmation__item-name">{{ item.product.nome }}</p>
+                        <p class="confirmation__item-qty">Quantidade: {{ item.quantidade }}</p>
+                        <p class="confirmation__item-price">R$ {{ "%.2f"|format(item.preco_unitario)|replace('.', ',') }} cada</p>
+                    </div>
+                    <p class="confirmation__item-subtotal">R$ {{ "%.2f"|format(item.preco_unitario * item.quantidade)|replace('.', ',') }}</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Endereço de entrega -->
+            <div class="confirmation__address">
+                <h2 class="confirmation__address-title">Endereço de Entrega</h2>
+                <p class="confirmation__address-text">
+                    {{ pedido.endereco }}, {{ pedido.numero }}
+                    {% if pedido.complemento %} - {{ pedido.complemento }}{% endif %}<br>
+                    {{ pedido.bairro }}<br>
+                    {{ pedido.cidade }} - {{ pedido.estado }}<br>
+                    CEP {{ pedido.cep }}
+                </p>
+            </div>
+
+            <!-- Informações de contato -->
+            <div class="confirmation__contact">
+                <p class="confirmation__contact-text">
+                    Enviamos um email de confirmação para <strong>{{ pedido.email }}</strong> com todos os detalhes do seu pedido.
+                </p>
+            </div>
+
+            <!-- Ações -->
+            <div class="confirmation__actions">
+                <a href="{{ url_for('main.home') }}" class="confirmation__btn confirmation__btn--primary">Voltar ao Início</a>
+                <a href="{{ url_for('shop.listagem') }}" class="confirmation__btn confirmation__btn--secondary">Continuar Comprando</a>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}

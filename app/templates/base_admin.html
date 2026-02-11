@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo %}Painel Admin{% endblock %} - FERRATO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-body">
+    <div class="admin-layout">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="admin-sidebar__logo">FERRATO Admin</div>
+            <nav class="admin-sidebar__nav">
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-sidebar__link {% if request.endpoint == 'admin.dashboard' or request.endpoint == 'admin.novo_produto' or request.endpoint == 'admin.editar_produto' %}active{% endif %}">
+                    Produtos
+                </a>
+                <a href="#" class="admin-sidebar__link disabled">Pedidos</a>
+                <a href="#" class="admin-sidebar__link disabled">Categorias</a>
+            </nav>
+            <div class="admin-sidebar__footer">
+                <div class="admin-sidebar__user">Admin</div>
+                <a href="{{ url_for('main.home') }}" class="admin-sidebar__link-out">Ver Site</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1 class="admin-header__title">{% block page_title %}Dashboard{% endblock %}</h1>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="admin-flash-container">
+                        {% for category, message in messages %}
+                            <div class="admin-flash admin-flash--{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="admin-content">
+                {% block conteudo %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Auto-hide flash messages
+        setTimeout(() => {
+            const flashContainer = document.querySelector('.admin-flash-container');
+            if (flashContainer) {
+                flashContainer.style.opacity = '0';
+                setTimeout(() => flashContainer.remove(), 300);
+            }
+        }, 5000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

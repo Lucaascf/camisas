@@ -51,6 +51,9 @@ def criar_app(config_class=ConfigDesenvolvimento):
     from app.blueprints.auth import auth_bp
     app.register_blueprint(auth_bp)
 
+    from app.blueprints.admin import admin_bp
+    app.register_blueprint(admin_bp)
+
     # --- Comandos CLI ---
     from app.seed import register_commands
     register_commands(app)

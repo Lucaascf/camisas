@@ -52,10 +52,14 @@
                 {% for produto in destaques %}
                 <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="product-card">
                     <div class="product-card__image-wrapper">
-                        <div class="product-card__placeholder">
-                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <span>Foto</span>
-                        </div>
+                        {% if produto.imagem_principal %}
+                            <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" class="product-card__image">
+                        {% else %}
+                            <div class="product-card__placeholder">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                <span>Foto</span>
+                            </div>
+                        {% endif %}
                         {% if produto.novo %}
                         <span class="product-card__badge product-card__badge--new">Novo</span>
                         {% elif produto.em_promocao %}

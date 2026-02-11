@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Checkout — FERRATO{% endblock %}
+
+{% block conteudo %}
+
+    <section class="shop-header">
+        <nav class="breadcrumb">
+            <a href="{{ url_for('main.home') }}" class="breadcrumb__item">Home</a>
+            <span class="breadcrumb__separator">/</span>
+            <a href="{{ url_for('cart.ver_carrinho') }}" class="breadcrumb__item">Carrinho</a>
+            <span class="breadcrumb__separator">/</span>
+            <span class="breadcrumb__item breadcrumb__item--active">Checkout</span>
+        </nav>
+    </section>
+
+    <section class="checkout">
+        <div class="checkout__container">
+            <!-- Formulário -->
+            <div class="checkout__form-wrapper">
+                <h1 class="checkout__title">Finalizar Compra</h1>
+
+                {% if not current_user.is_authenticated %}
+                <div class="checkout__guest-notice">
+                    <p>Já tem uma conta? <a href="{{ url_for('auth.login', next=url_for('cart.checkout')) }}" class="checkout__login-link">Faça login</a></p>
+                </div>
+                {% endif %}
+
+                <form method="POST" class="checkout__form">
+                    {{ form.hidden_tag() }}
+
+                    <!-- Dados Pessoais -->
+                    <fieldset class="checkout__fieldset">
+                        <legend class="checkout__legend">Dados Pessoais</legend>
+
+                        <div class="checkout__field">
+                            {{ form.nome.label(class="checkout__label") }}
+                            {{ form.nome(class="checkout__input") }}
+                            {% if form.nome.errors %}
+                                <span class="checkout__error">{{ form.nome.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="checkout__field-row">
+                            <div class="checkout__field checkout__field--half">
+                                {{ form.email.label(class="checkout__label") }}
+                                {{ form.email(class="checkout__input", type="email") }}
+                                {% if form.email.errors %}
+                                    <span class="checkout__error">{{ form.email.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="checkout__field checkout__field--half">
+                                {{ form.telefone.label(class="checkout__label") }}
+                                {{ form.telefone(class="checkout__input", type="tel") }}
+                                {% if form.telefone.errors %}
+                                    <span class="checkout__error">{{ form.telefone.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Endereço de Entrega -->
+                    <fieldset class="checkout__fieldset">
+                        <legend class="checkout__legend">Endereço de Entrega</legend>
+
+                        <div class="checkout__field-row">
+                            <div class="checkout__field checkout__field--small">
+                                {{ form.cep.label(class="checkout__label") }}
+                                {{ form.cep(class="checkout__input", maxlength="9") }}
+                                {% if form.cep.errors %}
+                                    <span class="checkout__error">{{ form.cep.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="checkout__field-row">
+                            <div class="checkout__field checkout__field--grow">
+                                {{ form.endereco.label(class="checkout__label") }}
+                                {{ form.endereco(class="checkout__input") }}
+                                {% if form.endereco.errors %}
+                                    <span class="checkout__error">{{ form.endereco.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="checkout__field checkout__field--small">
+                                {{ form.numero.label(class="checkout__label") }}
+                                {{ form.numero(class="checkout__input") }}
+                                {% if form.numero.errors %}
+                                    <span class="checkout__error">{{ form.numero.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="checkout__field">
+                            {{ form.complemento.label(class="checkout__label") }}
+                            {{ form.complemento(class="checkout__input") }}
+                            {% if form.complemento.errors %}
+                                <span class="checkout__error">{{ form.complemento.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="checkout__field-row">
+                            <div class="checkout__field checkout__field--half">
+                                {{ form.bairro.label(class="checkout__label") }}
+                                {{ form.bairro(class="checkout__input") }}
+                                {% if form.bairro.errors %}
+                                    <span class="checkout__error">{{ form.bairro.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="checkout__field checkout__field--half">
+                                {{ form.cidade.label(class="checkout__label") }}
+                                {{ form.cidade(class="checkout__input") }}
+                                {% if form.cidade.errors %}
+                                    <span class="checkout__error">{{ form.cidade.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="checkout__field-row">
+                            <div class="checkout__field checkout__field--small">
+                                {{ form.estado.label(class="checkout__label") }}
+                                {{ form.estado(class="checkout__input checkout__select") }}
+                                {% if form.estado.errors %}
+                                    <span class="checkout__error">{{ form.estado.errors[0] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <button type="submit" class="checkout__submit-btn">Confirmar Pedido</button>
+                </form>
+            </div>
+
+            <!-- Resumo do Pedido -->
+            <aside class="checkout__summary">
+                <h2 class="checkout__summary-title">Resumo do Pedido</h2>
+
+                <div class="checkout__items">
+                    {% for item in itens %}
+                    <div class="checkout__item">
+                        <div class="checkout__item-image">
+                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        </div>
+                        <div class="checkout__item-info">
+                            <p class="checkout__item-name">{{ item.product.nome }}</p>
+                            <p class="checkout__item-qty">Qtd: {{ item.quantidade }}</p>
+                        </div>
+                        <p class="checkout__item-price">R$ {{ "%.2f"|format(item.product.preco_final * item.quantidade)|replace('.', ',') }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="checkout__summary-total">
+                    <span>Total</span>
+                    <span>R$ {{ "%.2f"|format(total)|replace('.', ',') }}</span>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    // Máscara de CEP
+    const cepInput = document.getElementById('cep');
+    if (cepInput) {
+        cepInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 8) value = value.substring(0, 8);
+            if (value.length > 5) {
+                value = value.substring(0, 5) + '-' + value.substring(5);
+            }
+            e.target.value = value;
+        });
+
+        // Buscar CEP (opcional - requer API externa)
+        cepInput.addEventListener('blur', function(e) {
+            const cep = e.target.value.replace(/\D/g, '');
+            if (cep.length === 8) {
+                fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.erro) {
+                            document.getElementById('endereco').value = data.logradouro || '';
+                            document.getElementById('bairro').value = data.bairro || '';
+                            document.getElementById('cidade').value = data.localidade || '';
+                            document.getElementById('estado').value = data.uf || '';
+                            document.getElementById('numero').focus();
+                        }
+                    })
+                    .catch(() => {});
+            }
+        });
+    }
+
+    // Máscara de telefone
+    const telInput = document.getElementById('telefone');
+    if (telInput) {
+        telInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.substring(0, 11);
+            if (value.length > 10) {
+                value = '(' + value.substring(0, 2) + ') ' + value.substring(2, 7) + '-' + value.substring(7);
+            } else if (value.length > 6) {
+                value = '(' + value.substring(0, 2) + ') ' + value.substring(2, 6) + '-' + value.substring(6);
+            } else if (value.length > 2) {
+                value = '(' + value.substring(0, 2) + ') ' + value.substring(2);
+            }
+            e.target.value = value;
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}Produtos{% endblock %}
+
+{% block conteudo %}
+<div class="admin-dashboard">
+    <div class="admin-dashboard__header">
+        <a href="{{ url_for('admin.novo_produto') }}" class="admin-btn admin-btn--primary">+ Novo Produto</a>
+    </div>
+
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th width="80">Imagem</th>
+                    <th>Nome</th>
+                    <th width="120">Categoria</th>
+                    <th width="100">Preço</th>
+                    <th width="80">Estoque</th>
+                    <th width="80">Status</th>
+                    <th width="180">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produto in produtos %}
+                <tr class="{% if not produto.ativo %}admin-table__row--inactive{% endif %}">
+                    <td>
+                        {% if produto.imagem_url %}
+                            <img src="{{ produto.imagem_url }}" alt="{{ produto.nome }}" class="admin-table__thumb">
+                        {% else %}
+                            <div class="admin-table__no-image">Sem imagem</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ produto.nome }}</strong>
+                        {% if produto.novo %}<span class="admin-badge admin-badge--new">Novo</span>{% endif %}
+                        {% if produto.destaque %}<span class="admin-badge admin-badge--featured">Destaque</span>{% endif %}
+                    </td>
+                    <td>{{ produto.categoria.nome }}</td>
+                    <td>
+                        {% if produto.em_promocao %}
+                            <span class="admin-price admin-price--old">R$ {{ "%.2f"|format(produto.preco) }}</span><br>
+                            <span class="admin-price admin-price--sale">R$ {{ "%.2f"|format(produto.preco_promocional) }}</span>
+                        {% else %}
+                            R$ {{ "%.2f"|format(produto.preco) }}
+                        {% endif %}
+                    </td>
+                    <td>{{ produto.estoque }}</td>
+                    <td>
+                        <span class="admin-status admin-status--{% if produto.ativo %}active{% else %}inactive{% endif %}">
+                            {% if produto.ativo %}Ativo{% else %}Inativo{% endif %}
+                        </span>
+                    </td>
+                    <td class="admin-table__actions">
+                        <a href="{{ url_for('admin.editar_produto', id=produto.id) }}" class="admin-btn admin-btn--small">Editar</a>
+                        <form method="POST" action="{{ url_for('admin.toggle_ativo', id=produto.id) }}" style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="admin-btn admin-btn--small admin-btn--{% if produto.ativo %}danger{% else %}success{% endif %}">
+                                {% if produto.ativo %}Desativar{% else %}Ativar{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

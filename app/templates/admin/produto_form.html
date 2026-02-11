@@ -1,0 +1,204 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}{% if produto %}Editar Produto{% else %}Novo Produto{% endif %}{% endblock %}
+
+{% block conteudo %}
+<div class="admin-form-container">
+    <form method="POST" class="admin-form" enctype="multipart/form-data" novalidate id="product-form">
+        {{ form.hidden_tag() }}
+
+        <div class="admin-form__grid">
+            <!-- Coluna Esquerda: Dados Principais -->
+            <div class="admin-form__col">
+                <h2 class="admin-form__section-title">Informações Básicas</h2>
+
+                <div class="admin-form__group">
+                    {{ form.nome.label(class_="admin-form__label") }}
+                    {{ form.nome(class_="admin-form__input", placeholder="Ex: Camisa Slim Branca", id="nome") }}
+                    {% if form.nome.errors %}
+                        <span class="admin-form__error">{{ form.nome.errors[0] }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form__group">
+                    {{ form.slug.label(class_="admin-form__label") }}
+                    {{ form.slug(class_="admin-form__input", placeholder="Ex: camisa-slim-branca (deixe vazio para gerar automaticamente)", id="slug") }}
+                    {% if form.slug.errors %}
+                        <span class="admin-form__error">{{ form.slug.errors[0] }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form__group">
+                    {{ form.descricao.label(class_="admin-form__label") }}
+                    {{ form.descricao(class_="admin-form__textarea", rows=5, placeholder="Descrição detalhada do produto...") }}
+                    {% if form.descricao.errors %}
+                        <span class="admin-form__error">{{ form.descricao.errors[0] }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form__group">
+                    {{ form.categoria_id.label(class_="admin-form__label") }}
+                    {{ form.categoria_id(class_="admin-form__select") }}
+                    {% if form.categoria_id.errors %}
+                        <span class="admin-form__error">{{ form.categoria_id.errors[0] }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form__row">
+                    <div class="admin-form__group">
+                        {{ form.preco.label(class_="admin-form__label") }}
+                        {{ form.preco(class_="admin-form__input", placeholder="0.00") }}
+                        {% if form.preco.errors %}
+                            <span class="admin-form__error">{{ form.preco.errors[0] }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="admin-form__group">
+                        {{ form.preco_promocional.label(class_="admin-form__label") }}
+                        {{ form.preco_promocional(class_="admin-form__input", placeholder="0.00 (opcional)") }}
+                        {% if form.preco_promocional.errors %}
+                            <span class="admin-form__error">{{ form.preco_promocional.errors[0] }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna Direita: Configurações -->
+            <div class="admin-form__col">
+                <h2 class="admin-form__section-title">Configurações</h2>
+
+                <div class="admin-form__group">
+                    {{ form.imagem_url.label(class_="admin-form__label") }}
+                    {{ form.imagem_url(class_="admin-form__input", placeholder="https://exemplo.com/imagem.jpg (compatibilidade)", id="imagem-url-input") }}
+                    {% if form.imagem_url.errors %}
+                        <span class="admin-form__error">{{ form.imagem_url.errors[0] }}</span>
+                    {% endif %}
+                    <div class="admin-form__image-preview" id="image-preview">
+                        {% if produto and produto.imagem_url %}
+                            <img src="{{ produto.imagem_url }}" alt="Preview">
+                        {% endif %}
+                    </div>
+                </div>
+
+
+                {% if produto %}
+                <div class="admin-form__group" style="background: #F0FDF4; padding: 16px; margin-top: 24px; border-left: 4px solid #10B981;">
+                    <h3 class="admin-form__label" style="font-size: 14px; margin-bottom: 12px;">Adicionar Imagens</h3>
+                    <form method="POST" action="{{ url_for('admin.adicionar_imagens', id=produto.id) }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="file" name="imagens" multiple accept="image/*" style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #10B981;">
+                        <button type="submit" class="admin-btn admin-btn--primary" style="background: #10B981; width: 100%;">Adicionar Imagens</button>
+                    </form>
+                </div>
+
+                {% if produto.imagens %}
+                <div class="admin-form__group">
+                    <label class="admin-form__label">Imagens Atuais ({{ produto.imagens|length }})</label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-top: 12px;">
+                        {% for imagem in produto.imagens|sort(attribute='ordem') %}
+                        <div style="position: relative; border: 1px solid #E5E5E5; padding: 8px;">
+                            <img src="{{ url_for('main.servir_imagem', image_id=imagem.id) }}" alt="{{ imagem.filename }}" style="width: 100%; height: 150px; object-fit: cover; display: block;">
+                            <p style="font-size: 11px; margin: 8px 0 4px; color: #8B8B8B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ imagem.filename }}</p>
+                            <p style="font-size: 10px; color: #8B8B8B; margin-bottom: 8px;">Ordem: {{ imagem.ordem }}</p>
+                            <form method="POST" action="{{ url_for('admin.deletar_imagem', image_id=imagem.id) }}" style="margin: 0;" onsubmit="return confirm('Confirma a exclusão desta imagem?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="admin-btn admin-btn--small admin-btn--danger" style="width: 100%; font-size: 10px; padding: 6px;">Remover</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <div class="admin-form__group">
+                    {{ form.estoque.label(class_="admin-form__label") }}
+                    {{ form.estoque(class_="admin-form__input", placeholder="0") }}
+                    {% if form.estoque.errors %}
+                        <span class="admin-form__error">{{ form.estoque.errors[0] }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form__checkboxes">
+                    <div class="admin-form__checkbox">
+                        {{ form.ativo(class_="admin-form__checkbox-input") }}
+                        {{ form.ativo.label(class_="admin-form__checkbox-label") }}
+                    </div>
+
+                    <div class="admin-form__checkbox">
+                        {{ form.destaque(class_="admin-form__checkbox-input") }}
+                        {{ form.destaque.label(class_="admin-form__checkbox-label") }}
+                        <small>Exibir na home em "Destaques"</small>
+                    </div>
+
+                    <div class="admin-form__checkbox">
+                        {{ form.novo(class_="admin-form__checkbox-input") }}
+                        {{ form.novo.label(class_="admin-form__checkbox-label") }}
+                        <small>Exibir badge "Novo"</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-form__footer">
+            <a href="{{ url_for('admin.dashboard') }}" class="admin-btn admin-btn--secondary">Cancelar</a>
+            <button type="submit" class="admin-btn admin-btn--primary" id="submit-btn">
+                <span id="submit-text">Salvar Produto</span>
+                <span id="submit-loading" style="display: none;">Salvando...</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Image preview for URL field
+    const imageInput = document.getElementById('imagem-url-input');
+    const imagePreview = document.getElementById('image-preview');
+
+    if (imageInput && imagePreview) {
+        imageInput.addEventListener('input', (e) => {
+            const url = e.target.value.trim();
+            if (url) {
+                imagePreview.innerHTML = `<img src="${url}" alt="Preview" onerror="this.parentElement.innerHTML='Imagem não encontrada'">`;
+            } else {
+                imagePreview.innerHTML = '';
+            }
+        });
+    }
+
+    // Auto-generate slug from name
+    const nomeInput = document.getElementById('nome');
+    const slugInput = document.getElementById('slug');
+
+    if (nomeInput && slugInput) {
+        nomeInput.addEventListener('blur', () => {
+            if (!slugInput.value) {
+                const slug = nomeInput.value
+                    .toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+                    .replace(/[^\w\s-]/g, '')
+                    .trim()
+                    .replace(/\s+/g, '-');
+                slugInput.value = slug;
+            }
+        });
+    }
+
+    // Feedback visual no submit do formulário principal
+    const form = document.getElementById('product-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const submitText = document.getElementById('submit-text');
+    const submitLoading = document.getElementById('submit-loading');
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            console.log('💾 Salvando produto...');
+            submitBtn.disabled = true;
+            submitText.style.display = 'none';
+            submitLoading.style.display = 'inline';
+        });
+    }
+</script>
+{% endblock %}
