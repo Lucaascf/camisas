@@ -10,7 +10,7 @@
             <p class="hero__subtitle">Nova Coleção 2026</p>
             <h1 class="hero__title">A Arte da <span>Elegância</span> Masculina</h1>
             <p class="hero__description">Camisas confeccionadas com os mais nobres tecidos, corte impecável e atenção a cada detalhe. Para o homem que valoriza a excelência.</p>
-            <a href="#" class="hero__cta">Ver Coleção</a>
+            <a href="{{ url_for('shop.listagem') }}" class="hero__cta">Ver Coleção</a>
         </div>
     </section>
 
@@ -22,58 +22,21 @@
             <div class="section__divider"></div>
         </div>
         <div class="categories__grid">
-            <div class="category-card">
+            {% for cat in categorias %}
+            <a href="{{ url_for('shop.listagem', slug=cat.slug) }}" class="category-card">
                 <div class="category-card__placeholder">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="0"/><path d="M3 9h18M9 3v18"/></svg>
                 </div>
                 <div class="category-card__overlay"></div>
                 <div class="category-card__content">
-                    <h3 class="category-card__name">Social</h3>
-                    <p class="category-card__count">24 produtos</p>
+                    <h3 class="category-card__name">{{ cat.nome }}</h3>
+                    <p class="category-card__count">{{ cat.products|length }} produtos</p>
                 </div>
                 <div class="category-card__arrow">
                     <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 </div>
-            </div>
-            <div class="category-card">
-                <div class="category-card__placeholder">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="0"/><path d="M3 9h18M9 3v18"/></svg>
-                </div>
-                <div class="category-card__overlay"></div>
-                <div class="category-card__content">
-                    <h3 class="category-card__name">Polo</h3>
-                    <p class="category-card__count">18 produtos</p>
-                </div>
-                <div class="category-card__arrow">
-                    <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </div>
-            </div>
-            <div class="category-card">
-                <div class="category-card__placeholder">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="0"/><path d="M3 9h18M9 3v18"/></svg>
-                </div>
-                <div class="category-card__overlay"></div>
-                <div class="category-card__content">
-                    <h3 class="category-card__name">Casual</h3>
-                    <p class="category-card__count">32 produtos</p>
-                </div>
-                <div class="category-card__arrow">
-                    <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </div>
-            </div>
-            <div class="category-card">
-                <div class="category-card__placeholder">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="0"/><path d="M3 9h18M9 3v18"/></svg>
-                </div>
-                <div class="category-card__overlay"></div>
-                <div class="category-card__content">
-                    <h3 class="category-card__name">Linho</h3>
-                    <p class="category-card__count">12 produtos</p>
-                </div>
-                <div class="category-card__arrow">
-                    <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </div>
-            </div>
+            </a>
+            {% endfor %}
         </div>
     </section>
 
@@ -86,91 +49,39 @@
                 <div class="section__divider"></div>
             </div>
             <div class="products__grid">
-                <!-- Produto 1 -->
-                <div class="product-card">
+                {% for produto in destaques %}
+                <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="product-card">
                     <div class="product-card__image-wrapper">
                         <div class="product-card__placeholder">
                             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                             <span>Foto</span>
                         </div>
+                        {% if produto.novo %}
                         <span class="product-card__badge product-card__badge--new">Novo</span>
+                        {% elif produto.em_promocao %}
+                        <span class="product-card__badge product-card__badge--sale">-{{ produto.percentual_desconto }}%</span>
+                        {% endif %}
                         <div class="product-card__actions">
-                            <button class="product-card__action-btn">Adicionar</button>
+                            <button class="product-card__action-btn" data-product-id="{{ produto.id }}">Adicionar</button>
                             <button class="product-card__action-btn product-card__action-btn--icon">
                                 <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                             </button>
                         </div>
                     </div>
                     <div class="product-card__info">
-                        <p class="product-card__category">Social</p>
-                        <h3 class="product-card__name">Camisa Slim Branca</h3>
-                        <p class="product-card__price">R$ 289,90</p>
-                    </div>
-                </div>
-                <!-- Produto 2 -->
-                <div class="product-card">
-                    <div class="product-card__image-wrapper">
-                        <div class="product-card__placeholder">
-                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <span>Foto</span>
-                        </div>
-                        <div class="product-card__actions">
-                            <button class="product-card__action-btn">Adicionar</button>
-                            <button class="product-card__action-btn product-card__action-btn--icon">
-                                <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="product-card__info">
-                        <p class="product-card__category">Polo</p>
-                        <h3 class="product-card__name">Polo Classic Azul Marinho</h3>
-                        <p class="product-card__price">R$ 219,90</p>
-                    </div>
-                </div>
-                <!-- Produto 3 -->
-                <div class="product-card">
-                    <div class="product-card__image-wrapper">
-                        <div class="product-card__placeholder">
-                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <span>Foto</span>
-                        </div>
-                        <span class="product-card__badge product-card__badge--sale">-20%</span>
-                        <div class="product-card__actions">
-                            <button class="product-card__action-btn">Adicionar</button>
-                            <button class="product-card__action-btn product-card__action-btn--icon">
-                                <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="product-card__info">
-                        <p class="product-card__category">Casual</p>
-                        <h3 class="product-card__name">Camisa Linho Off-White</h3>
+                        <p class="product-card__category">{{ produto.categoria.nome }}</p>
+                        <h3 class="product-card__name">{{ produto.nome }}</h3>
+                        {% if produto.em_promocao %}
                         <p class="product-card__price">
-                            <span class="product-card__price--old">R$ 349,90</span>
-                            <span class="product-card__price--sale">R$ 279,90</span>
+                            <span class="product-card__price--old">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</span>
+                            <span class="product-card__price--sale">R$ {{ "%.2f"|format(produto.preco_promocional)|replace('.', ',') }}</span>
                         </p>
+                        {% else %}
+                        <p class="product-card__price">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</p>
+                        {% endif %}
                     </div>
-                </div>
-                <!-- Produto 4 -->
-                <div class="product-card">
-                    <div class="product-card__image-wrapper">
-                        <div class="product-card__placeholder">
-                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <span>Foto</span>
-                        </div>
-                        <div class="product-card__actions">
-                            <button class="product-card__action-btn">Adicionar</button>
-                            <button class="product-card__action-btn product-card__action-btn--icon">
-                                <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="product-card__info">
-                        <p class="product-card__category">Social</p>
-                        <h3 class="product-card__name">Camisa Francesa Azul Claro</h3>
-                        <p class="product-card__price">R$ 329,90</p>
-                    </div>
-                </div>
+                </a>
+                {% endfor %}
             </div>
         </div>
     </section>
@@ -220,4 +131,53 @@
         </div>
     </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    document.querySelectorAll('.product-card__action-btn[data-product-id]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var textoOriginal = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Adicionando...';
+
+            fetch('/cart/adicionar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({ product_id: parseInt(btn.dataset.productId) }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.sucesso) {
+                    btn.textContent = 'Adicionado!';
+                    var badge = document.getElementById('cart-badge');
+                    badge.textContent = data.cart_count;
+                    badge.style.display = '';
+                    setTimeout(function() {
+                        btn.textContent = textoOriginal;
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    alert(data.mensagem);
+                    btn.textContent = textoOriginal;
+                    btn.disabled = false;
+                }
+            })
+            .catch(function() {
+                btn.textContent = textoOriginal;
+                btn.disabled = false;
+            });
+        });
+    });
+})();
+</script>
 {% endblock %}

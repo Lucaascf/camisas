@@ -13,11 +13,10 @@
         <div class="footer__column">
             <h4 class="footer__column-title">Navegação</h4>
             <ul class="footer__links">
-                <li><a href="#" class="footer__link">Camisas Sociais</a></li>
-                <li><a href="#" class="footer__link">Polo</a></li>
-                <li><a href="#" class="footer__link">Casual</a></li>
-                <li><a href="#" class="footer__link">Acessórios</a></li>
-                <li><a href="#" class="footer__link">Lançamentos</a></li>
+                {% for cat in nav_categories %}
+                <li><a href="{{ url_for('shop.listagem', slug=cat.slug) }}" class="footer__link">{{ cat.nome }}</a></li>
+                {% endfor %}
+                <li><a href="{{ url_for('shop.listagem') }}" class="footer__link">Ver Tudo</a></li>
             </ul>
         </div>
         <div class="footer__column">

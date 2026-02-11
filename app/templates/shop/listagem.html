@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ categoria.nome if categoria else 'Todas as Camisas' }} — FERRATO{% endblock %}
+
+{% block conteudo %}
+
+    <section class="shop-header">
+        <nav class="breadcrumb">
+            <a href="{{ url_for('main.home') }}" class="breadcrumb__item">Home</a>
+            <span class="breadcrumb__separator">/</span>
+            {% if categoria %}
+            <span class="breadcrumb__item breadcrumb__item--active">{{ categoria.nome }}</span>
+            {% else %}
+            <span class="breadcrumb__item breadcrumb__item--active">Todas as Camisas</span>
+            {% endif %}
+        </nav>
+
+        <h1 class="shop-header__title">{{ categoria.nome if categoria else 'Todas as Camisas' }}</h1>
+        {% if categoria and categoria.descricao %}
+        <p class="shop-header__description">{{ categoria.descricao }}</p>
+        {% endif %}
+        <p class="shop-header__count">{{ produtos|length }} produto{{ 's' if produtos|length != 1 else '' }}</p>
+    </section>
+
+    <section class="shop-grid">
+        <div class="products__grid">
+            {% for produto in produtos %}
+            <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="product-card">
+                <div class="product-card__image-wrapper">
+                    <div class="product-card__placeholder">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <span>Foto</span>
+                    </div>
+                    {% if produto.novo %}
+                    <span class="product-card__badge product-card__badge--new">Novo</span>
+                    {% elif produto.em_promocao %}
+                    <span class="product-card__badge product-card__badge--sale">-{{ produto.percentual_desconto }}%</span>
+                    {% endif %}
+                </div>
+                <div class="product-card__info">
+                    <p class="product-card__category">{{ produto.categoria.nome }}</p>
+                    <h3 class="product-card__name">{{ produto.nome }}</h3>
+                    {% if produto.em_promocao %}
+                    <p class="product-card__price">
+                        <span class="product-card__price--old">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</span>
+                        <span class="product-card__price--sale">R$ {{ "%.2f"|format(produto.preco_promocional)|replace('.', ',') }}</span>
+                    </p>
+                    {% else %}
+                    <p class="product-card__price">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</p>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+{% endblock %}

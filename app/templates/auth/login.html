@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block titulo %}Login - FERRATO{% endblock %}
+
+{% block conteudo %}
+<div class="auth-page">
+    <div class="auth-container">
+        <h1 class="auth-page__title">Login</h1>
+
+        <form method="POST" class="auth-form" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="auth-form__group">
+                <label for="email" class="auth-form__label">Email</label>
+                {{ form.email(class_="auth-form__input", placeholder="seu@email.com") }}
+                {% if form.email.errors %}
+                    <span class="auth-form__error">{{ form.email.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="auth-form__group">
+                <label for="senha" class="auth-form__label">Senha</label>
+                {{ form.senha(class_="auth-form__input", placeholder="••••••") }}
+                {% if form.senha.errors %}
+                    <span class="auth-form__error">{{ form.senha.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="auth-form__checkbox">
+                {{ form.lembrar(class_="auth-form__checkbox-input") }}
+                <label for="lembrar" class="auth-form__checkbox-label">Lembrar-me</label>
+            </div>
+
+            <button type="submit" class="auth-form__btn">Entrar</button>
+        </form>
+
+        <div class="auth-footer">
+            <p class="auth-footer__text">
+                Não tem uma conta?
+                <a href="{{ url_for('auth.registro') }}" class="auth-footer__link">Criar conta</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
