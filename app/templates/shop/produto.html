@@ -59,17 +59,51 @@
 
             <p class="product-detail__description">{{ produto.descricao }}</p>
 
-            <p class="product-detail__stock {% if produto.estoque > 0 %}product-detail__stock--available{% else %}product-detail__stock--unavailable{% endif %}">
-                {% if produto.estoque > 0 %}
+            {% if produto.variantes %}
+            <div class="product-detail__size-selector" style="margin: 24px 0;">
+                <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 12px; color: #1A1A1A;">Tamanho:</label>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    {% for tamanho in ['P', 'M', 'G', 'GG', 'XG'] %}
+                    {% set variante = produto.variantes|selectattr('tamanho', 'equalto', tamanho)|first %}
+                    {% set disponivel = variante and variante.ativo and variante.estoque > 0 %}
+                    <button class="size-btn"
+                            data-variant-id="{{ variante.id if variante else '' }}"
+                            data-estoque="{{ variante.estoque if variante else 0 }}"
+                            {% if not disponivel %}disabled{% endif %}
+                            style="padding: 12px 20px; border: 1px solid {% if disponivel %}#E5E5E5{% else %}#D1D5DB{% endif %}; background: {% if disponivel %}white{% else %}#F3F4F6{% endif %}; color: {% if disponivel %}#1A1A1A{% else %}#9CA3AF{% endif %}; cursor: {% if disponivel %}pointer{% else %}not-allowed{% endif %}; font-size: 14px; font-weight: 500; transition: all 0.3s; opacity: {% if disponivel %}1{% else %}0.5{% endif %};">
+                        {{ tamanho }}
+                    </button>
+                    {% endfor %}
+                </div>
+                <p id="size-error" style="color: #DC2626; font-size: 13px; margin-top: 8px; display: none;">Por favor, selecione um tamanho</p>
+            </div>
+
+            <p class="product-detail__stock" id="stock-status" style="display: none;">
+                <span id="stock-text"></span>
+            </p>
+
+            <button class="product-detail__add-btn"
+                    data-product-id="{{ produto.id }}"
+                    id="add-to-cart-btn"
+                    {% if produto.estoque_total == 0 %}disabled{% endif %}>
+                {% if produto.estoque_total == 0 %}Sem Estoque{% else %}Adicionar ao Carrinho{% endif %}
+            </button>
+            {% else %}
+            <p class="product-detail__stock {% if produto.estoque_total > 0 %}product-detail__stock--available{% else %}product-detail__stock--unavailable{% endif %}"
+               style="{% if produto.estoque_total > 0 %}color: #10B981;{% else %}color: #DC2626;{% endif %} font-weight: 500; margin: 16px 0;">
+                {% if produto.estoque_total > 0 %}
                 Em estoque
                 {% else %}
                 Esgotado
                 {% endif %}
             </p>
 
-            <button class="product-detail__add-btn" data-product-id="{{ produto.id }}" {% if produto.estoque == 0 %}disabled{% endif %}>
-                Adicionar ao Carrinho
+            <button class="product-detail__add-btn"
+                    data-product-id="{{ produto.id }}"
+                    {% if produto.estoque_total == 0 %}disabled{% endif %}>
+                {% if produto.estoque_total == 0 %}Sem Estoque{% else %}Adicionar ao Carrinho{% endif %}
             </button>
+            {% endif %}
         </div>
     </section>
 
@@ -96,17 +130,86 @@ function trocarImagem(url, thumbnail) {
     }
 }
 
+// Seleção de tamanho
+var selectedVariantId = null;
+var sizeButtons = document.querySelectorAll('.size-btn');
+
+sizeButtons.forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // Ignorar cliques em botões desabilitados
+        if (this.disabled) {
+            return;
+        }
+
+        // Remover seleção de todos
+        sizeButtons.forEach(function(b) {
+            if (!b.disabled) {
+                b.style.border = '1px solid #E5E5E5';
+                b.style.background = 'white';
+                b.style.color = '#1A1A1A';
+            }
+        });
+
+        // Selecionar este
+        this.style.border = '2px solid #C8A35F';
+        this.style.background = '#C8A35F';
+        this.style.color = 'white';
+
+        selectedVariantId = this.dataset.variantId;
+        var estoque = parseInt(this.dataset.estoque);
+
+        // Atualizar status de estoque
+        var stockStatus = document.getElementById('stock-status');
+        var stockText = document.getElementById('stock-text');
+        stockStatus.style.display = 'block';
+
+        if (estoque > 0) {
+            stockStatus.className = 'product-detail__stock product-detail__stock--available';
+            stockStatus.style.color = '#10B981';
+            stockStatus.style.fontWeight = '500';
+            stockText.textContent = 'Em estoque';
+        } else {
+            stockStatus.className = 'product-detail__stock product-detail__stock--unavailable';
+            stockStatus.style.color = '#DC2626';
+            stockStatus.style.fontWeight = '500';
+            stockText.textContent = 'Esgotado';
+        }
+
+        // Esconder erro de tamanho
+        document.getElementById('size-error').style.display = 'none';
+    });
+});
+
 // Adicionar ao carrinho
 (function() {
     var btn = document.querySelector('.product-detail__add-btn');
-    if (!btn || btn.disabled) return;
+    if (!btn) return;
 
     var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     var textoOriginal = btn.textContent;
+    var temVariantes = {{ 'true' if produto.variantes else 'false' }};
 
     btn.addEventListener('click', function() {
+        // Não permitir clique se botão está desabilitado
+        if (this.disabled) {
+            return;
+        }
+
+        // Se tem variantes, verificar se um tamanho foi selecionado
+        if (temVariantes && !selectedVariantId) {
+            document.getElementById('size-error').style.display = 'block';
+            return;
+        }
+
         btn.disabled = true;
         btn.textContent = 'Adicionando...';
+
+        var requestBody = { product_id: parseInt(btn.dataset.productId) };
+        if (selectedVariantId) {
+            requestBody.variant_id = parseInt(selectedVariantId);
+        }
 
         fetch('/cart/adicionar', {
             method: 'POST',
@@ -114,7 +217,7 @@ function trocarImagem(url, thumbnail) {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken,
             },
-            body: JSON.stringify({ product_id: parseInt(btn.dataset.productId) }),
+            body: JSON.stringify(requestBody),
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {

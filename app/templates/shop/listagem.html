@@ -25,7 +25,7 @@
     <section class="shop-grid">
         <div class="products__grid">
             {% for produto in produtos %}
-            <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="product-card">
+            <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="product-card {% if produto.estoque_total == 0 %}product-card--out-of-stock{% endif %}">
                 <div class="product-card__image-wrapper">
                     {% if produto.imagem_principal %}
                         <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" class="product-card__image">
@@ -35,7 +35,9 @@
                             <span>Foto</span>
                         </div>
                     {% endif %}
-                    {% if produto.novo %}
+                    {% if produto.estoque_total == 0 %}
+                    <span class="product-card__badge product-card__badge--out-of-stock">Sem Estoque</span>
+                    {% elif produto.novo %}
                     <span class="product-card__badge product-card__badge--new">Novo</span>
                     {% elif produto.em_promocao %}
                     <span class="product-card__badge product-card__badge--sale">-{{ produto.percentual_desconto }}%</span>

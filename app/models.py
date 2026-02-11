@@ -59,7 +59,7 @@ class Product(db.Model):
     destaque = db.Column(db.Boolean, default=False)
     novo = db.Column(db.Boolean, default=False)
     ativo = db.Column(db.Boolean, default=True)
-    estoque = db.Column(db.Integer, default=0)
+    estoque = db.Column(db.Integer, default=0)  # Mantido para produtos antigos, mas variantes têm seu próprio estoque
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     @property
@@ -86,8 +86,40 @@ class Product(db.Model):
         # Fallback para imagem_url (compatibilidade com produtos antigos)
         return self.imagem_url
 
+    @property
+    def estoque_total(self):
+        """Retorna o estoque total somando todas as variantes."""
+        if self.variantes:
+            return sum(v.estoque for v in self.variantes if v.ativo)
+        return 0  # Produtos sem variantes = sem estoque
+
+    @property
+    def tem_variantes(self):
+        """Verifica se o produto possui variantes ativas."""
+        return bool(self.variantes and any(v.ativo for v in self.variantes))
+
     def __repr__(self):
         return f'<Product {self.nome}>'
+
+
+class ProductVariant(db.Model):
+    """Variante de produto (tamanho/cor)."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    tamanho = db.Column(db.String(10), nullable=False)  # P, M, G, GG, XG
+    estoque = db.Column(db.Integer, default=0, nullable=False)
+    ativo = db.Column(db.Boolean, default=True)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    product = db.relationship('Product', backref='variantes', lazy=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('product_id', 'tamanho', name='uq_product_variant'),
+    )
+
+    def __repr__(self):
+        return f'<ProductVariant {self.product_id} - {self.tamanho}>'
 
 
 class CartItem(db.Model):
@@ -97,19 +129,21 @@ class CartItem(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     session_id = db.Column(db.String(100), nullable=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    variant_id = db.Column(db.Integer, db.ForeignKey('product_variant.id'), nullable=True)
     quantidade = db.Column(db.Integer, default=1)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     product = db.relationship('Product', backref='cart_items', lazy=True)
+    variant = db.relationship('ProductVariant', backref='cart_items', lazy=True)
     user = db.relationship('User', backref='cart_items', lazy=True)
 
     __table_args__ = (
-        db.UniqueConstraint('user_id', 'product_id', name='uq_cart_user_product'),
-        db.UniqueConstraint('session_id', 'product_id', name='uq_cart_session_product'),
+        db.UniqueConstraint('user_id', 'product_id', 'variant_id', name='uq_cart_user_product_variant'),
+        db.UniqueConstraint('session_id', 'product_id', 'variant_id', name='uq_cart_session_product_variant'),
     )
 
     def __repr__(self):
-        return f'<CartItem product={self.product_id} qty={self.quantidade}>'
+        return f'<CartItem product={self.product_id} variant={self.variant_id} qty={self.quantidade}>'
 
 
 class Order(db.Model):
@@ -148,13 +182,16 @@ class OrderItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    variant_id = db.Column(db.Integer, db.ForeignKey('product_variant.id'), nullable=True)
+    tamanho = db.Column(db.String(10), nullable=True)  # Snapshot do tamanho no momento da compra
     quantidade = db.Column(db.Integer, nullable=False)
     preco_unitario = db.Column(db.Float, nullable=False)
 
     product = db.relationship('Product', backref='order_items', lazy=True)
+    variant = db.relationship('ProductVariant', backref='order_items', lazy=True)
 
     def __repr__(self):
-        return f'<OrderItem order={self.order_id} product={self.product_id}>'
+        return f'<OrderItem order={self.order_id} product={self.product_id} variant={self.variant_id}>'
 
 
 class ProductImage(db.Model):

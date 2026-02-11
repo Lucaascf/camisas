@@ -409,6 +409,14 @@ h1, h2, h3, h4 {
     cursor: pointer;
 }
 
+.product-card--out-of-stock {
+    opacity: 0.6;
+}
+
+.product-card--out-of-stock .product-card__image {
+    filter: grayscale(30%);
+}
+
 .product-card__image-wrapper {
     position: relative;
     aspect-ratio: 3 / 4;
@@ -470,6 +478,11 @@ h1, h2, h3, h4 {
     color: #FAFAFA;
 }
 
+.product-card__badge--out-of-stock {
+    background-color: #9CA3AF;
+    color: #FAFAFA;
+}
+
 .product-card__actions {
     position: absolute;
     bottom: 16px;
@@ -500,9 +513,16 @@ h1, h2, h3, h4 {
     border-radius: 0;
 }
 
-.product-card__action-btn:hover {
+.product-card__action-btn:hover:not(:disabled) {
     background-color: #1A1A1A;
     color: #FAFAFA;
+}
+
+.product-card__action-btn:disabled {
+    background-color: #9CA3AF;
+    color: #FAFAFA;
+    cursor: not-allowed;
+    opacity: 1;
 }
 
 .product-card__action-btn--icon {
@@ -1072,9 +1092,11 @@ h1, h2, h3, h4 {
 }
 
 .product-detail__add-btn:disabled {
-    border-color: #C0C0C0;
-    color: #C0C0C0;
+    border-color: #9CA3AF;
+    background-color: #9CA3AF;
+    color: #FAFAFA;
     cursor: not-allowed;
+    opacity: 1;
 }
 
 /* ========== CARRINHO ========== */

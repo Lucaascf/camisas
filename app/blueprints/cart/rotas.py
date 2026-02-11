@@ -8,7 +8,7 @@ from flask_login import current_user
 from app import db
 from app.blueprints.cart import cart_bp
 from app.forms import CheckoutForm
-from app.models import CartItem, Order, OrderItem, Product
+from app.models import CartItem, Order, OrderItem, Product, ProductVariant
 
 
 # ── Helpers ──────────────────────────────────────────────
@@ -55,6 +55,7 @@ def adicionar():
     """Adiciona um produto ao carrinho (AJAX)."""
     dados = request.get_json(silent=True) or {}
     product_id = dados.get('product_id')
+    variant_id = dados.get('variant_id')
     quantidade = dados.get('quantidade', 1)
 
     if not product_id:
@@ -67,22 +68,38 @@ def adicionar():
     if quantidade < 1:
         return jsonify(sucesso=False, mensagem='Quantidade inválida.'), 400
 
+    # Verificar variante se fornecida
+    variante = None
+    estoque_disponivel = produto.estoque
+
+    if variant_id:
+        variante = ProductVariant.query.get(variant_id)
+        if not variante or variante.product_id != produto.id or not variante.ativo:
+            return jsonify(sucesso=False, mensagem='Variante não encontrada.'), 404
+        estoque_disponivel = variante.estoque
+    elif produto.tem_variantes:
+        return jsonify(sucesso=False, mensagem='Por favor, selecione um tamanho.'), 400
+
     # Buscar item existente
     if current_user.is_authenticated:
         item = CartItem.query.filter_by(
-            user_id=current_user.id, product_id=product_id
+            user_id=current_user.id,
+            product_id=product_id,
+            variant_id=variant_id
         ).first()
     else:
         item = CartItem.query.filter_by(
-            session_id=obter_session_id(), product_id=product_id
+            session_id=obter_session_id(),
+            product_id=product_id,
+            variant_id=variant_id
         ).first()
 
     nova_qty = (item.quantidade if item else 0) + quantidade
 
-    if nova_qty > produto.estoque:
+    if nova_qty > estoque_disponivel:
         return jsonify(
             sucesso=False,
-            mensagem=f'Estoque insuficiente. Disponível: {produto.estoque}.'
+            mensagem=f'Estoque insuficiente. Disponível: {estoque_disponivel}.'
         ), 400
 
     if item:
@@ -90,6 +107,7 @@ def adicionar():
     else:
         item = CartItem(
             product_id=product_id,
+            variant_id=variant_id,
             quantidade=quantidade,
             user_id=current_user.id if current_user.is_authenticated else None,
             session_id=None if current_user.is_authenticated else obter_session_id(),
@@ -139,10 +157,13 @@ def atualizar():
             total=f'{total:.2f}'.replace('.', ','),
         )
 
-    if quantidade > item.product.estoque:
+    # Verificar estoque disponível
+    estoque_disponivel = item.variant.estoque if item.variant else item.product.estoque
+
+    if quantidade > estoque_disponivel:
         return jsonify(
             sucesso=False,
-            mensagem=f'Estoque insuficiente. Disponível: {item.product.estoque}.'
+            mensagem=f'Estoque insuficiente. Disponível: {estoque_disponivel}.'
         ), 400
 
     item.quantidade = quantidade
@@ -210,8 +231,10 @@ def checkout():
 
         # Verificar estoque antes de criar o pedido
         for item in itens:
-            if item.quantidade > item.product.estoque:
-                flash(f'Estoque insuficiente para {item.product.nome}. Disponível: {item.product.estoque}', 'error')
+            estoque_disponivel = item.variant.estoque if item.variant else item.product.estoque
+            if item.quantidade > estoque_disponivel:
+                tamanho_info = f' (tamanho {item.variant.tamanho})' if item.variant else ''
+                flash(f'Estoque insuficiente para {item.product.nome}{tamanho_info}. Disponível: {estoque_disponivel}', 'error')
                 return redirect(url_for('cart.ver_carrinho'))
 
         # Criar pedido
@@ -238,13 +261,18 @@ def checkout():
             order_item = OrderItem(
                 order_id=pedido.id,
                 product_id=item.product_id,
+                variant_id=item.variant_id,
+                tamanho=item.variant.tamanho if item.variant else None,
                 quantidade=item.quantidade,
                 preco_unitario=item.product.preco_final
             )
             db.session.add(order_item)
 
             # Atualizar estoque
-            item.product.estoque -= item.quantidade
+            if item.variant:
+                item.variant.estoque -= item.quantidade
+            else:
+                item.product.estoque -= item.quantidade
 
         # Limpar carrinho
         for item in itens:

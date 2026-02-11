@@ -47,7 +47,9 @@
                     </div>
                     <div class="confirmation__item-info">
                         <p class="confirmation__item-name">{{ item.product.nome }}</p>
-                        <p class="confirmation__item-qty">Quantidade: {{ item.quantidade }}</p>
+                        <p class="confirmation__item-qty">
+                            {% if item.tamanho %}Tamanho: {{ item.tamanho }} • {% endif %}Quantidade: {{ item.quantidade }}
+                        </p>
                         <p class="confirmation__item-price">R$ {{ "%.2f"|format(item.preco_unitario)|replace('.', ',') }} cada</p>
                     </div>
                     <p class="confirmation__item-subtotal">R$ {{ "%.2f"|format(item.preco_unitario * item.quantidade)|replace('.', ',') }}</p>

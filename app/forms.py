@@ -85,11 +85,6 @@ class ProductForm(FlaskForm):
         DataRequired(message='Categoria é obrigatória')
     ], coerce=int)
 
-    estoque = IntegerField('Estoque', validators=[
-        DataRequired(message='Estoque é obrigatório'),
-        NumberRange(min=0, message='Estoque não pode ser negativo')
-    ], default=0)
-
     destaque = BooleanField('Produto em Destaque')
     novo = BooleanField('Produto Novo')
     ativo = BooleanField('Produto Ativo', default=True)

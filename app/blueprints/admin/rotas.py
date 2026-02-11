@@ -1,14 +1,14 @@
 """Rotas do painel administrativo."""
 
 import re
-from flask import render_template, redirect, url_for, flash, request, abort
+from flask import render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
 
 from app import db
 from app.blueprints.admin import admin_bp
 from app.forms import ProductForm
-from app.models import Product, Category, ProductImage
+from app.models import Product, Category, ProductImage, ProductVariant
 
 
 def admin_required(f):
@@ -52,7 +52,7 @@ def novo_produto():
             preco_promocional=form.preco_promocional.data,
             imagem_url=form.imagem_url.data,
             categoria_id=form.categoria_id.data,
-            estoque=form.estoque.data,
+            estoque=0,  # Estoque sempre gerenciado pelas variantes
             destaque=form.destaque.data,
             novo=form.novo.data,
             ativo=form.ativo.data
@@ -111,7 +111,7 @@ def editar_produto(id):
         produto.preco_promocional = form.preco_promocional.data
         produto.imagem_url = form.imagem_url.data
         produto.categoria_id = form.categoria_id.data
-        produto.estoque = form.estoque.data
+        produto.estoque = 0  # Estoque sempre gerenciado pelas variantes
         produto.destaque = form.destaque.data
         produto.novo = form.novo.data
         produto.ativo = form.ativo.data
@@ -202,3 +202,78 @@ def adicionar_imagens(id):
         flash(f'Erro ao salvar imagens: {str(e)}', 'error')
 
     return redirect(url_for('admin.editar_produto', id=id))
+
+
+@admin_bp.route('/produtos/<int:id>/variantes', methods=['POST'])
+def salvar_variantes(id):
+    """Salvar/atualizar variantes (tamanhos) de um produto."""
+    produto = Product.query.get_or_404(id)
+
+    dados = request.get_json()
+    if not dados or 'variantes' not in dados:
+        return jsonify(sucesso=False, mensagem='Dados inválidos'), 400
+
+    variantes_dados = dados['variantes']
+    variantes_criadas = []
+
+    try:
+        for v_data in variantes_dados:
+            tamanho = v_data.get('tamanho')
+            ativo = v_data.get('ativo', False)
+            estoque = v_data.get('estoque', 0)
+            variant_id = v_data.get('id')
+
+            if variant_id:
+                # Atualizar variante existente
+                variante = ProductVariant.query.get(variant_id)
+                if variante and variante.product_id == produto.id:
+                    variante.ativo = ativo
+                    variante.estoque = estoque if ativo else 0
+                    variantes_criadas.append({
+                        'id': variante.id,
+                        'tamanho': variante.tamanho,
+                        'estoque': variante.estoque,
+                        'ativo': variante.ativo
+                    })
+            else:
+                # Buscar se já existe variante para esse tamanho
+                variante = ProductVariant.query.filter_by(
+                    product_id=produto.id,
+                    tamanho=tamanho
+                ).first()
+
+                if variante:
+                    # Atualizar existente
+                    variante.ativo = ativo
+                    variante.estoque = estoque if ativo else 0
+                else:
+                    # Criar nova variante apenas se estiver ativa
+                    if ativo:
+                        variante = ProductVariant(
+                            product_id=produto.id,
+                            tamanho=tamanho,
+                            estoque=estoque,
+                            ativo=True
+                        )
+                        db.session.add(variante)
+                        db.session.flush()  # Para obter o ID
+
+                if variante:
+                    variantes_criadas.append({
+                        'id': variante.id,
+                        'tamanho': variante.tamanho,
+                        'estoque': variante.estoque,
+                        'ativo': variante.ativo
+                    })
+
+        db.session.commit()
+
+        return jsonify(
+            sucesso=True,
+            mensagem='Variantes salvas com sucesso!',
+            variantes=variantes_criadas
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(sucesso=False, mensagem=str(e)), 500

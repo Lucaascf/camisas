@@ -111,13 +111,40 @@
                 {% endif %}
                 {% endif %}
 
-                <div class="admin-form__group">
-                    {{ form.estoque.label(class_="admin-form__label") }}
-                    {{ form.estoque(class_="admin-form__input", placeholder="0") }}
-                    {% if form.estoque.errors %}
-                        <span class="admin-form__error">{{ form.estoque.errors[0] }}</span>
-                    {% endif %}
+                {% if produto %}
+                <div class="admin-form__group" style="background: #FAFAFA; padding: 16px; margin-top: 24px; border-left: 4px solid #C8A35F;">
+                    <h3 class="admin-form__label" style="font-size: 14px; margin-bottom: 12px;">Tamanhos Disponíveis</h3>
+                    <p style="font-size: 12px; color: #8B8B8B; margin-bottom: 12px;">⚠️ <strong>IMPORTANTE:</strong> O estoque é gerenciado APENAS pelos tamanhos. Produtos sem tamanhos configurados aparecerão como "SEM ESTOQUE" no site.</p>
+                    <div id="variantes-container">
+                        {% for tamanho in ['P', 'M', 'G', 'GG', 'XG'] %}
+                        {% set variante = produto.variantes|selectattr('tamanho', 'equalto', tamanho)|first %}
+                        <div class="variant-row" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 12px; background: white; border: 1px solid #E5E5E5;">
+                            <label style="min-width: 30px; font-weight: 500;">{{ tamanho }}</label>
+                            <input type="checkbox"
+                                   class="variant-active-checkbox"
+                                   data-tamanho="{{ tamanho }}"
+                                   data-variant-id="{{ variante.id if variante else '' }}"
+                                   {% if variante and variante.ativo %}checked{% endif %}
+                                   style="width: 20px; height: 20px;">
+                            <input type="number"
+                                   class="variant-stock-input admin-form__input"
+                                   data-tamanho="{{ tamanho }}"
+                                   placeholder="Estoque"
+                                   value="{{ variante.estoque if variante else 0 }}"
+                                   min="0"
+                                   {% if not variante or not variante.ativo %}disabled{% endif %}
+                                   style="flex: 1; max-width: 150px; padding: 8px;">
+                            <span class="variant-status" style="font-size: 12px; color: #8B8B8B;">
+                                {% if variante and variante.ativo %}Ativo{% else %}Inativo{% endif %}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" id="salvar-variantes-btn" class="admin-btn admin-btn--primary" style="width: 100%; margin-top: 12px; background: #C8A35F;">
+                        Salvar Tamanhos
+                    </button>
                 </div>
+                {% endif %}
 
                 <div class="admin-form__checkboxes">
                     <div class="admin-form__checkbox">
@@ -198,6 +225,91 @@
             submitBtn.disabled = true;
             submitText.style.display = 'none';
             submitLoading.style.display = 'inline';
+        });
+    }
+
+    // Gerenciamento de variantes (tamanhos)
+    const variantCheckboxes = document.querySelectorAll('.variant-active-checkbox');
+    const variantInputs = document.querySelectorAll('.variant-stock-input');
+
+    variantCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const tamanho = this.dataset.tamanho;
+            const stockInput = document.querySelector('.variant-stock-input[data-tamanho="' + tamanho + '"]');
+            const statusSpan = this.parentElement.querySelector('.variant-status');
+
+            if (this.checked) {
+                stockInput.disabled = false;
+                statusSpan.textContent = 'Ativo';
+            } else {
+                stockInput.disabled = true;
+                statusSpan.textContent = 'Inativo';
+            }
+        });
+    });
+
+    // Salvar variantes via AJAX
+    const salvarVariantesBtn = document.getElementById('salvar-variantes-btn');
+    if (salvarVariantesBtn) {
+        salvarVariantesBtn.addEventListener('click', function() {
+            const produtoId = {{ produto.id if produto else 0 }};
+            if (!produtoId) return;
+
+            const variantes = [];
+            variantCheckboxes.forEach(function(checkbox) {
+                const tamanho = checkbox.dataset.tamanho;
+                const stockInput = document.querySelector('.variant-stock-input[data-tamanho="' + tamanho + '"]');
+                const variantId = checkbox.dataset.variantId;
+
+                variantes.push({
+                    id: variantId || null,
+                    tamanho: tamanho,
+                    ativo: checkbox.checked,
+                    estoque: parseInt(stockInput.value) || 0
+                });
+            });
+
+            const btn = this;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Salvando...';
+
+            fetch('/admin/produtos/' + produtoId + '/variantes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ variantes: variantes })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.sucesso) {
+                    btn.textContent = '✓ Salvo!';
+                    // Atualizar os IDs das variantes criadas
+                    if (data.variantes) {
+                        data.variantes.forEach(function(v) {
+                            const checkbox = document.querySelector('.variant-active-checkbox[data-tamanho="' + v.tamanho + '"]');
+                            if (checkbox) {
+                                checkbox.dataset.variantId = v.id;
+                            }
+                        });
+                    }
+                    setTimeout(function() {
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    alert('Erro: ' + data.mensagem);
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(function(err) {
+                alert('Erro ao salvar variantes');
+                btn.textContent = originalText;
+                btn.disabled = false;
+            });
         });
     }
 </script>

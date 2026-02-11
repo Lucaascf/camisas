@@ -50,7 +50,7 @@
             </div>
             <div class="products__grid">
                 {% for produto in destaques %}
-                <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="product-card">
+                <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="product-card {% if produto.estoque_total == 0 %}product-card--out-of-stock{% endif %}">
                     <div class="product-card__image-wrapper">
                         {% if produto.imagem_principal %}
                             <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" class="product-card__image">
@@ -60,13 +60,17 @@
                                 <span>Foto</span>
                             </div>
                         {% endif %}
-                        {% if produto.novo %}
+                        {% if produto.estoque_total == 0 %}
+                        <span class="product-card__badge product-card__badge--out-of-stock">Sem Estoque</span>
+                        {% elif produto.novo %}
                         <span class="product-card__badge product-card__badge--new">Novo</span>
                         {% elif produto.em_promocao %}
                         <span class="product-card__badge product-card__badge--sale">-{{ produto.percentual_desconto }}%</span>
                         {% endif %}
                         <div class="product-card__actions">
-                            <button class="product-card__action-btn" data-product-id="{{ produto.id }}">Adicionar</button>
+                            <button class="product-card__action-btn" data-product-id="{{ produto.id }}" {% if produto.estoque_total == 0 %}disabled{% endif %}>
+                                {% if produto.estoque_total == 0 %}Sem Estoque{% else %}Adicionar{% endif %}
+                            </button>
                             <button class="product-card__action-btn product-card__action-btn--icon">
                                 <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                             </button>
