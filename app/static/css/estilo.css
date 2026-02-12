@@ -1624,6 +1624,65 @@ h1, h2, h3, h4 {
     color: #a88540;
 }
 
+/* Email Verification Styles */
+.auth-page__subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #8B8B8B;
+    margin-top: -10px;
+    margin-bottom: 30px;
+}
+
+.auth-form__hint {
+    display: block;
+    font-size: 12px;
+    color: #8B8B8B;
+    margin-top: 5px;
+}
+
+.auth-verification-info {
+    background: #FAFAFA;
+    border: 1px solid #E5E5E5;
+    padding: 20px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.auth-verification-info__email {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 10px 0 15px;
+}
+
+.auth-form__input--code {
+    text-align: center;
+    font-size: 24px;
+    letter-spacing: 8px;
+    font-weight: 600;
+}
+
+.auth-resend {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #E5E5E5;
+}
+
+.auth-resend__btn {
+    background: none;
+    border: none;
+    color: #C8A35F;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.auth-resend__btn:hover {
+    color: #1f2937;
+}
+
 /* ========== ACCOUNT DROPDOWN ========== */
 .header__account {
     position: relative;

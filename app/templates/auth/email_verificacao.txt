@@ -1,0 +1,12 @@
+Bem-vindo à FERRATO
+
+Para concluir seu cadastro, utilize o código de verificação abaixo:
+
+{{ codigo }}
+
+Este código expira em 10 minutos e pode ser usado apenas uma vez.
+
+Se você não solicitou este cadastro, ignore este email.
+
+---
+© 2026 FERRATO - Camisas Masculinas de Luxo

@@ -45,6 +45,40 @@ class RegistroForm(FlaskForm):
             raise ValidationError('Este email já está cadastrado.')
 
 
+class RegistroEmailForm(FlaskForm):
+    """Formulário de registro - Etapa 1: Nome, Email e Senha."""
+
+    nome = StringField('Nome Completo', validators=[
+        DataRequired(message='Nome é obrigatório'),
+        Length(min=3, max=100, message='Nome deve ter entre 3 e 100 caracteres')
+    ])
+    email = StringField('Email', validators=[
+        DataRequired(message='Email é obrigatório')
+    ])
+    senha = PasswordField('Senha', validators=[
+        DataRequired(message='Senha é obrigatória'),
+        Length(min=6, message='Senha deve ter no mínimo 6 caracteres')
+    ])
+    confirmar_senha = PasswordField('Confirmar Senha', validators=[
+        DataRequired(message='Confirmação de senha é obrigatória'),
+        EqualTo('senha', message='As senhas devem ser iguais')
+    ])
+
+    def validate_email(self, field):
+        """Valida se o email já está cadastrado."""
+        if User.query.filter_by(email=field.data.lower()).first():
+            raise ValidationError('Este email já está cadastrado.')
+
+
+class VerificarEmailForm(FlaskForm):
+    """Formulário de registro - Etapa 2: Código de Verificação."""
+
+    codigo = StringField('Código de Verificação', validators=[
+        DataRequired(message='Código é obrigatório'),
+        Length(min=6, max=6, message='Código deve ter 6 dígitos')
+    ])
+
+
 class ProductForm(FlaskForm):
     """Formulário de produto para admin."""
 

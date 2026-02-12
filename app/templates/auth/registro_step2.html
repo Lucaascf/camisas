@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block titulo %}Verificar Email - FERRATO{% endblock %}
+
+{% block conteudo %}
+<div class="auth-page">
+    <div class="auth-container">
+        <h1 class="auth-page__title">Verificar Email</h1>
+        <p class="auth-page__subtitle">Etapa 2 de 2</p>
+
+        <div class="auth-verification-info">
+            <p>Enviamos um código de verificação para:</p>
+            <p class="auth-verification-info__email">{{ email }}</p>
+            <small class="auth-form__hint">Verifique sua caixa de entrada e pasta de spam</small>
+        </div>
+
+        <form method="POST" class="auth-form" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="auth-form__group">
+                <label for="codigo" class="auth-form__label">Código de Verificação</label>
+                {{ form.codigo(
+                    class_="auth-form__input auth-form__input--code",
+                    placeholder="000000",
+                    maxlength="6",
+                    inputmode="numeric",
+                    pattern="[0-9]*",
+                    autocomplete="one-time-code"
+                ) }}
+                <small class="auth-form__hint">O código expira em 10 minutos</small>
+                {% if form.codigo.errors %}
+                    <span class="auth-form__error">{{ form.codigo.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="auth-form__btn">Verificar e Criar Conta</button>
+        </form>
+
+        <div class="auth-resend">
+            <p class="auth-footer__text">Não recebeu o código?</p>
+            <form method="POST" action="{{ url_for('auth.reenviar_codigo') }}">
+                {{ form.hidden_tag() }}
+                <button type="submit" class="auth-resend__btn">Reenviar código</button>
+            </form>
+        </div>
+
+        <div class="auth-footer">
+            <p class="auth-footer__text">
+                <a href="{{ url_for('auth.registro') }}" class="auth-footer__link">Voltar ao início</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

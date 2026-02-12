@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block titulo %}Criar Conta - FERRATO{% endblock %}
+
+{% block conteudo %}
+<div class="auth-page">
+    <div class="auth-container">
+        <h1 class="auth-page__title">Criar Conta</h1>
+        <p class="auth-page__subtitle">Etapa 1 de 2</p>
+
+        <form method="POST" class="auth-form" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="auth-form__group">
+                <label for="nome" class="auth-form__label">Nome Completo</label>
+                {{ form.nome(class_="auth-form__input", placeholder="João Silva") }}
+                {% if form.nome.errors %}
+                    <span class="auth-form__error">{{ form.nome.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="auth-form__group">
+                <label for="email" class="auth-form__label">Email</label>
+                {{ form.email(class_="auth-form__input", placeholder="seu@email.com") }}
+                <small class="auth-form__hint">Enviaremos um código de verificação para este email</small>
+                {% if form.email.errors %}
+                    <span class="auth-form__error">{{ form.email.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="auth-form__group">
+                <label for="senha" class="auth-form__label">Senha</label>
+                {{ form.senha(class_="auth-form__input", placeholder="Mínimo 6 caracteres") }}
+                {% if form.senha.errors %}
+                    <span class="auth-form__error">{{ form.senha.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="auth-form__group">
+                <label for="confirmar_senha" class="auth-form__label">Confirmar Senha</label>
+                {{ form.confirmar_senha(class_="auth-form__input", placeholder="Digite a senha novamente") }}
+                {% if form.confirmar_senha.errors %}
+                    <span class="auth-form__error">{{ form.confirmar_senha.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="auth-form__btn">Continuar</button>
+        </form>
+
+        <div class="auth-footer">
+            <p class="auth-footer__text">
+                Já tem uma conta?
+                <a href="{{ url_for('auth.login') }}" class="auth-footer__link">Fazer login</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

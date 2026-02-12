@@ -1,9 +1,13 @@
 """Fábrica da aplicação FERRATO."""
 
+from dotenv import load_dotenv
+load_dotenv()  # DEVE ser chamado ANTES de importar config
+
 from datetime import datetime
 
 from flask import Flask, session
 from flask_login import LoginManager, current_user
+from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 
@@ -14,6 +18,7 @@ login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Faça login para acessar esta página.'
 csrf = CSRFProtect()
+mail = Mail()
 
 
 def criar_app(config_class=ConfigDesenvolvimento):
@@ -26,6 +31,7 @@ def criar_app(config_class=ConfigDesenvolvimento):
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
+    mail.init_app(app)
 
     # --- Importar models e criar tabelas ---
     from app import models  # noqa: F401

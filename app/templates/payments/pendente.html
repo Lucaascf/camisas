@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block titulo %}Pagamento Pendente — FERRATO{% endblock %}
+
+{% block conteudo %}
+<section class="payment-result">
+    <div class="payment-result__container">
+        <div class="payment-result__icon payment-result__icon--pending">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="#F59E0B" stroke-width="2"/>
+                <path d="M12 6V12L16 14" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+
+        <h1 class="payment-result__titulo">Aguardando Confirmação</h1>
+
+        <p class="payment-result__descricao">
+            Seu pedido foi criado e estamos aguardando a confirmação do pagamento.
+        </p>
+
+        <div class="payment-result__detalhes">
+            <div class="payment-result__info">
+                <span class="payment-result__label">Número do Pedido:</span>
+                <span class="payment-result__valor">#{{ pedido.id }}</span>
+            </div>
+            <div class="payment-result__info">
+                <span class="payment-result__label">Valor Total:</span>
+                <span class="payment-result__valor">R$ {{ "%.2f"|format(pedido.total) }}</span>
+            </div>
+            <div class="payment-result__info">
+                <span class="payment-result__label">Status:</span>
+                <span class="payment-result__valor payment-result__valor--pendente">Pendente</span>
+            </div>
+        </div>
+
+        <div class="payment-result__proximos">
+            <h2 class="payment-result__subtitulo">O que fazer agora?</h2>
+            <ul class="payment-result__lista">
+                <li>Se você escolheu <strong>PIX</strong>, realize o pagamento através do QR Code ou código enviado por e-mail</li>
+                <li>Se você escolheu <strong>Boleto</strong>, efetue o pagamento em qualquer banco ou lotérica</li>
+                <li>Após a confirmação do pagamento, você receberá um e-mail em <strong>{{ pedido.email }}</strong></li>
+                <li>A confirmação pode levar até 2 dias úteis para boleto e é instantânea para PIX</li>
+            </ul>
+        </div>
+
+        <div class="payment-result__alerta">
+            <p><strong>Importante:</strong> Verifique sua caixa de entrada e spam para encontrar as instruções de pagamento.</p>
+        </div>
+
+        <div class="payment-result__acoes">
+            <a href="{{ url_for('main.index') }}" class="payment-result__btn payment-result__btn--primario">
+                Voltar ao Início
+            </a>
+            <a href="{{ url_for('shop.catalogo') }}" class="payment-result__btn payment-result__btn--secundario">
+                Continuar Comprando
+            </a>
+        </div>
+    </div>
+</section>
+
+<style>
+.payment-result {
+    background: #FAFAFA;
+    min-height: 60vh;
+    padding: 80px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.payment-result__container {
+    max-width: 600px;
+    width: 100%;
+    background: white;
+    padding: 60px 40px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.payment-result__icon {
+    margin: 0 auto 30px;
+    width: 80px;
+    height: 80px;
+}
+
+.payment-result__titulo {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: #1A1A1A;
+    margin: 0 0 16px;
+}
+
+.payment-result__descricao {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    color: #8B8B8B;
+    margin: 0 0 40px;
+    line-height: 1.5;
+}
+
+.payment-result__detalhes {
+    background: #FAFAFA;
+    padding: 30px;
+    margin: 0 0 40px;
+}
+
+.payment-result__info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #E5E5E5;
+}
+
+.payment-result__info:last-child {
+    border-bottom: none;
+}
+
+.payment-result__label {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #8B8B8B;
+}
+
+.payment-result__valor {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: #1A1A1A;
+}
+
+.payment-result__valor--pendente {
+    color: #F59E0B;
+}
+
+.payment-result__proximos {
+    margin: 0 0 30px;
+    text-align: left;
+}
+
+.payment-result__subtitulo {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1A1A1A;
+    margin: 0 0 20px;
+}
+
+.payment-result__lista {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.payment-result__lista li {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #1A1A1A;
+    line-height: 1.6;
+    padding: 8px 0 8px 28px;
+    position: relative;
+}
+
+.payment-result__lista li::before {
+    content: '•';
+    position: absolute;
+    left: 8px;
+    color: #C8A35F;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.payment-result__alerta {
+    background: #FEF3C7;
+    border-left: 4px solid #F59E0B;
+    padding: 16px 20px;
+    margin: 0 0 40px;
+    text-align: left;
+}
+
+.payment-result__alerta p {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #92400E;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.payment-result__acoes {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.payment-result__btn {
+    flex: 1;
+    min-width: 200px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 16px 32px;
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.payment-result__btn--primario {
+    background: #1f2937;
+    color: white;
+}
+
+.payment-result__btn--primario:hover {
+    background: #374151;
+}
+
+.payment-result__btn--secundario {
+    background: transparent;
+    color: #1A1A1A;
+    border: 2px solid #1A1A1A;
+}
+
+.payment-result__btn--secundario:hover {
+    background: #1A1A1A;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .payment-result {
+        padding: 40px 20px;
+    }
+
+    .payment-result__container {
+        padding: 40px 24px;
+    }
+
+    .payment-result__titulo {
+        font-size: 24px;
+    }
+
+    .payment-result__acoes {
+        flex-direction: column;
+    }
+
+    .payment-result__btn {
+        min-width: 100%;
+    }
+}
+</style>
+{% endblock %}

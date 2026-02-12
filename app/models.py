@@ -30,6 +30,25 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
 
+class EmailVerificationToken(db.Model):
+    """Token de verificação de email para registro de usuários."""
+
+    __tablename__ = 'email_verification_token'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    codigo = db.Column(db.String(6), nullable=False)
+    nome = db.Column(db.String(100), nullable=False)
+    senha_hash = db.Column(db.String(256), nullable=False)
+    tentativas = db.Column(db.Integer, default=0)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    expira_em = db.Column(db.DateTime, nullable=False)
+    verificado = db.Column(db.Boolean, default=False)
+
+    def __repr__(self):
+        return f'<EmailVerificationToken {self.email}>'
+
+
 class Category(db.Model):
     """Categoria de produtos."""
 
