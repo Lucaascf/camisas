@@ -187,6 +187,10 @@ class Order(db.Model):
     estado = db.Column(db.String(2), nullable=False)
     cep = db.Column(db.String(9), nullable=False)
 
+    # Mercado Pago
+    mercadopago_preference_id = db.Column(db.String(200), nullable=True)
+    mercadopago_payment_id = db.Column(db.String(200), nullable=True)
+
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     items = db.relationship('OrderItem', backref='order', lazy=True)

@@ -27,6 +27,10 @@ class Config:
     MAIL_SUPPRESS_SEND = os.environ.get('FLASK_ENV') == 'development'
     TESTING = os.environ.get('FLASK_ENV') == 'development'
 
+    # Mercado Pago
+    MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN')
+    APP_BASE_URL = os.environ.get('APP_BASE_URL', '')
+
 
 class ConfigDesenvolvimento(Config):
     """Configuração para desenvolvimento."""

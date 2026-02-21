@@ -7,6 +7,7 @@ from flask_login import current_user
 
 from app import db
 from app.blueprints.cart import cart_bp
+from app.blueprints.cart import mercadopago_service
 from app.forms import CheckoutForm
 from app.models import CartItem, Order, OrderItem, Product, ProductVariant
 
@@ -237,7 +238,7 @@ def checkout():
                 flash(f'Estoque insuficiente para {item.product.nome}{tamanho_info}. Disponível: {estoque_disponivel}', 'error')
                 return redirect(url_for('cart.ver_carrinho'))
 
-        # Criar pedido
+        # Criar pedido (sem atualizar estoque ainda - aguardando pagamento)
         pedido = Order(
             user_id=current_user.id if current_user.is_authenticated else None,
             total=total,
@@ -251,12 +252,12 @@ def checkout():
             cidade=form.cidade.data,
             estado=form.estado.data,
             cep=form.cep.data,
-            status='pendente'
+            status='aguardando_pagamento'
         )
         db.session.add(pedido)
         db.session.flush()  # Para obter o ID do pedido
 
-        # Criar itens do pedido e atualizar estoque
+        # Criar itens do pedido (SEM atualizar estoque ainda)
         for item in itens:
             order_item = OrderItem(
                 order_id=pedido.id,
@@ -268,20 +269,25 @@ def checkout():
             )
             db.session.add(order_item)
 
-            # Atualizar estoque
-            if item.variant:
-                item.variant.estoque -= item.quantidade
-            else:
-                item.product.estoque -= item.quantidade
-
-        # Limpar carrinho
-        for item in itens:
-            db.session.delete(item)
-
         db.session.commit()
 
-        flash('Pedido realizado com sucesso!', 'success')
-        return redirect(url_for('cart.confirmacao', order_id=pedido.id))
+        # Criar preferência no Mercado Pago
+        try:
+            preference_id, init_point = mercadopago_service.criar_preferencia(pedido, itens)
+
+            # Salvar preference_id no pedido
+            pedido.mercadopago_preference_id = preference_id
+            db.session.commit()
+
+            # Redirecionar para o Mercado Pago
+            return redirect(init_point)
+
+        except Exception as e:
+            # Se falhar, cancelar o pedido
+            pedido.status = 'cancelado'
+            db.session.commit()
+            flash(f'Erro ao processar pagamento: {str(e)}', 'error')
+            return redirect(url_for('cart.ver_carrinho'))
 
     # Calcular total para exibição
     total = sum(item.product.preco_final * item.quantidade for item in itens)
@@ -299,5 +305,43 @@ def confirmacao(order_id):
         if pedido.user_id != current_user.id:
             flash('Pedido não encontrado.', 'error')
             return redirect(url_for('main.home'))
+
+    # Se o pedido está aguardando pagamento, consultar status no MP
+    if pedido.status == 'aguardando_pagamento' and pedido.mercadopago_preference_id:
+        try:
+            resultado = mercadopago_service.consultar_pagamento(pedido.mercadopago_preference_id)
+
+            if resultado['status'] == 'approved':
+                # Pagamento aprovado! Atualizar estoque e limpar carrinho
+                for item in pedido.items:
+                    if item.variant:
+                        item.variant.estoque -= item.quantidade
+                    else:
+                        item.product.estoque -= item.quantidade
+
+                # Limpar carrinho do usuário
+                if current_user.is_authenticated:
+                    CartItem.query.filter_by(user_id=current_user.id).delete()
+                elif 'cart_session_id' in session:
+                    CartItem.query.filter_by(session_id=session['cart_session_id']).delete()
+
+                # Atualizar pedido
+                pedido.status = 'pago'
+                pedido.mercadopago_payment_id = resultado['payment_id']
+                db.session.commit()
+
+                flash('Pagamento aprovado! Pedido confirmado com sucesso.', 'success')
+
+            elif resultado['status'] == 'rejected' or resultado['status'] == 'cancelled':
+                # Pagamento rejeitado
+                pedido.status = 'cancelado'
+                db.session.commit()
+                flash('Pagamento não foi aprovado. Por favor, tente novamente.', 'error')
+
+            # Se status == 'pending', mantém 'aguardando_pagamento'
+
+        except Exception as e:
+            # Em caso de erro na consulta, mantém aguardando
+            flash('Verificando status do pagamento...', 'info')
 
     return render_template('cart/confirmacao.html', pedido=pedido)

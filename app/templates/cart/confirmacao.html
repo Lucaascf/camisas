@@ -6,16 +6,40 @@
 
     <section class="confirmation">
         <div class="confirmation__container">
-            <!-- Ícone de sucesso -->
-            <div class="confirmation__icon">
-                <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="8 12 11 15 16 9"/>
-                </svg>
+            <!-- Ícone baseado no status -->
+            <div class="confirmation__icon {% if pedido.status == 'cancelado' %}confirmation__icon--error{% elif pedido.status == 'aguardando_pagamento' %}confirmation__icon--pending{% endif %}">
+                {% if pedido.status == 'pago' %}
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="8 12 11 15 16 9"/>
+                    </svg>
+                {% elif pedido.status == 'aguardando_pagamento' %}
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                {% else %}
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                {% endif %}
             </div>
 
-            <h1 class="confirmation__title">Pedido Realizado com Sucesso!</h1>
-            <p class="confirmation__subtitle">Obrigado pela sua compra, {{ pedido.nome }}.</p>
+            {% if pedido.status == 'pago' %}
+                <h1 class="confirmation__title">Pagamento Aprovado!</h1>
+                <p class="confirmation__subtitle">Obrigado pela sua compra, {{ pedido.nome }}. Seu pedido foi confirmado.</p>
+            {% elif pedido.status == 'aguardando_pagamento' %}
+                <h1 class="confirmation__title">Aguardando Pagamento</h1>
+                <p class="confirmation__subtitle">{{ pedido.nome }}, estamos processando seu pagamento. Por favor, aguarde alguns instantes e atualize esta página.</p>
+            {% elif pedido.status == 'cancelado' %}
+                <h1 class="confirmation__title">Pagamento Não Aprovado</h1>
+                <p class="confirmation__subtitle">{{ pedido.nome }}, infelizmente seu pagamento não foi aprovado. Por favor, tente novamente.</p>
+            {% else %}
+                <h1 class="confirmation__title">Pedido Realizado</h1>
+                <p class="confirmation__subtitle">Obrigado pela sua compra, {{ pedido.nome }}.</p>
+            {% endif %}
 
             <!-- Detalhes do pedido -->
             <div class="confirmation__details">

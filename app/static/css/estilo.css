@@ -2078,6 +2078,14 @@ h1, h2, h3, h4 {
     stroke-width: 3;
 }
 
+.confirmation__icon--pending {
+    background: #C8A35F;
+}
+
+.confirmation__icon--error {
+    background: #dc2626;
+}
+
 .confirmation__title {
     font-size: 36px;
     margin-bottom: 12px;
