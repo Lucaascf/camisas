@@ -113,7 +113,8 @@ def criar_preferencia(pedido, itens):
 
     response_data = resultado['response']
     preference_id = response_data['id']
-    init_point = response_data['init_point']
+    is_sandbox = current_app.config.get('MERCADOPAGO_SANDBOX', False)
+    init_point = response_data['sandbox_init_point'] if is_sandbox else response_data['init_point']
 
     return preference_id, init_point
 

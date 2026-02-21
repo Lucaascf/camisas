@@ -39,7 +39,7 @@ def seed_db():
             nome='Linho',
             slug='linho',
             descricao='Camisas de linho para conforto e sofisticação.',
-            imagem_url='/static/img/categorias/linho.jpg',
+            imagem_url='/static/img/categorias/linho.jpg',  
         ),
     }
 
