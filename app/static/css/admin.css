@@ -452,6 +452,57 @@
     background: #2563eb;
 }
 
+/* ========== ORDER BADGES ========== */
+.order-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.order-badge--warning  { background: #fef3c7; color: #92400e; }
+.order-badge--success  { background: #d1fae5; color: #065f46; }
+.order-badge--info     { background: #e0f2fe; color: #075985; }
+.order-badge--blue     { background: #dbeafe; color: #1e40af; }
+.order-badge--danger   { background: #fee2e2; color: #991b1b; }
+.order-badge--default  { background: #f3f4f6; color: #374151; }
+
+/* ========== ADMIN CARD ========== */
+.admin-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    padding: 24px;
+}
+
+.admin-card__title {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #374151;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-dl {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px 16px;
+    font-size: 14px;
+}
+
+.admin-dl dt {
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.admin-dl dd {
+    color: #111827;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {
     .admin-form__grid {

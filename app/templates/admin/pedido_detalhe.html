@@ -1,0 +1,151 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}Pedido #{{ pedido.id }}{% endblock %}
+
+{% block conteudo %}
+<div class="admin-dashboard">
+
+    <div class="admin-dashboard__header">
+        <a href="{{ url_for('admin.pedidos') }}" class="admin-btn admin-btn--small">&larr; Voltar aos pedidos</a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+        {# Dados do cliente #}
+        <div class="admin-card">
+            <h3 class="admin-card__title">Cliente</h3>
+            <dl class="admin-dl">
+                <dt>Nome</dt><dd>{{ pedido.nome }}</dd>
+                <dt>E-mail</dt><dd>{{ pedido.email }}</dd>
+                {% if pedido.telefone %}
+                <dt>Telefone</dt><dd>{{ pedido.telefone }}</dd>
+                {% endif %}
+                {% if pedido.user_id %}
+                <dt>Conta</dt><dd>Usuário registrado (ID {{ pedido.user_id }})</dd>
+                {% else %}
+                <dt>Conta</dt><dd>Compra como convidado</dd>
+                {% endif %}
+            </dl>
+        </div>
+
+        {# Endereço de entrega #}
+        <div class="admin-card">
+            <h3 class="admin-card__title">Endereço de entrega</h3>
+            <dl class="admin-dl">
+                <dt>Logradouro</dt><dd>{{ pedido.endereco }}, {{ pedido.numero }}{% if pedido.complemento %} — {{ pedido.complemento }}{% endif %}</dd>
+                <dt>Bairro</dt><dd>{{ pedido.bairro }}</dd>
+                <dt>Cidade/UF</dt><dd>{{ pedido.cidade }} — {{ pedido.estado }}</dd>
+                <dt>CEP</dt><dd>{{ pedido.cep }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    {# Itens do pedido #}
+    <div class="admin-card" style="margin-bottom: 24px;">
+        <h3 class="admin-card__title">Itens do pedido</h3>
+        <div class="admin-table-container" style="margin-top: 12px;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th width="80">Tamanho</th>
+                        <th width="70">Qtd</th>
+                        <th width="110">Preço unit.</th>
+                        <th width="110">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pedido.items %}
+                    <tr>
+                        <td>{{ item.product.nome if item.product else '(produto removido)' }}</td>
+                        <td>{{ item.tamanho or '—' }}</td>
+                        <td>{{ item.quantidade }}</td>
+                        <td>R$ {{ "%.2f"|format(item.preco_unitario) }}</td>
+                        <td>R$ {{ "%.2f"|format(item.preco_unitario * item.quantidade) }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr style="font-weight: 600; border-top: 2px solid #e5e7eb;">
+                        <td colspan="4" style="text-align: right;">Total</td>
+                        <td>R$ {{ "%.2f"|format(pedido.total) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# Pagamento e logística #}
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+
+        <div class="admin-card">
+            <h3 class="admin-card__title">Pagamento</h3>
+            <dl class="admin-dl">
+                <dt>Data</dt><dd>{{ pedido.criado_em.strftime('%d/%m/%Y às %H:%M') }}</dd>
+                {% if pedido.mercadopago_payment_id %}
+                <dt>ID Mercado Pago</dt><dd style="word-break: break-all;">{{ pedido.mercadopago_payment_id }}</dd>
+                {% endif %}
+                {% if pedido.mercadopago_preference_id %}
+                <dt>Preference ID</dt><dd style="word-break: break-all; font-size: 0.8rem; color: #888;">{{ pedido.mercadopago_preference_id }}</dd>
+                {% endif %}
+                {% if pedido.codigo_rastreio %}
+                <dt>Código de rastreio</dt><dd><strong>{{ pedido.codigo_rastreio }}</strong></dd>
+                {% endif %}
+            </dl>
+        </div>
+
+        {# Atualizar status #}
+        <div class="admin-card">
+            <h3 class="admin-card__title">Atualizar status</h3>
+
+            {% set badge_map = {
+                'pendente': ('warning', 'Pendente'),
+                'aguardando_pagamento': ('warning', 'Aguardando pagamento'),
+                'pago': ('success', 'Pago'),
+                'preparando': ('info', 'Preparando'),
+                'enviado': ('blue', 'Enviado'),
+                'entregue': ('success', 'Entregue'),
+                'cancelado': ('danger', 'Cancelado')
+            } %}
+            {% set badge = badge_map.get(pedido.status, ('default', pedido.status)) %}
+
+            <p style="margin-bottom: 16px;">
+                Status atual: <span class="order-badge order-badge--{{ badge[0] }}">{{ badge[1] }}</span>
+            </p>
+
+            <form method="POST" action="{{ url_for('admin.pedido_atualizar_status', id=pedido.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="admin-form__group">
+                    <label class="admin-form__label" for="status">Novo status</label>
+                    <select name="status" id="status" class="admin-form__input" onchange="toggleRastreio(this.value)">
+                        {% for s, label in [('pendente','Pendente'), ('aguardando_pagamento','Aguardando pagamento'),
+                                            ('pago','Pago'), ('preparando','Preparando'), ('enviado','Enviado'),
+                                            ('entregue','Entregue'), ('cancelado','Cancelado')] %}
+                        <option value="{{ s }}" {% if pedido.status == s %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="admin-form__group" id="rastreio-group" style="{% if pedido.status != 'enviado' %}display:none{% endif %}">
+                    <label class="admin-form__label" for="codigo_rastreio">Código de rastreio</label>
+                    <input type="text" name="codigo_rastreio" id="codigo_rastreio"
+                           class="admin-form__input"
+                           value="{{ pedido.codigo_rastreio or '' }}"
+                           placeholder="Ex: BR123456789BR">
+                </div>
+
+                <button type="submit" class="admin-btn admin-btn--primary" style="margin-top: 8px;">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleRastreio(status) {
+    const group = document.getElementById('rastreio-group');
+    group.style.display = status === 'enviado' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

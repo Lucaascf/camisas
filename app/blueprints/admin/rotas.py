@@ -8,7 +8,7 @@ from functools import wraps
 from app import db
 from app.blueprints.admin import admin_bp
 from app.forms import ProductForm
-from app.models import Product, Category, ProductImage, ProductVariant
+from app.models import Product, Category, ProductImage, ProductVariant, Order
 
 
 def admin_required(f):
@@ -29,6 +29,45 @@ def dashboard():
     """Dashboard admin com lista de produtos."""
     produtos = Product.query.order_by(Product.criado_em.desc()).all()
     return render_template('admin/dashboard.html', produtos=produtos)
+
+
+@admin_bp.route('/pedidos')
+def pedidos():
+    """Listar todos os pedidos com filtro por status."""
+    status_filtro = request.args.get('status', '')
+    query = Order.query.order_by(Order.criado_em.desc())
+    if status_filtro:
+        query = query.filter_by(status=status_filtro)
+    pedidos = query.all()
+    return render_template('admin/pedidos.html', pedidos=pedidos, status_filtro=status_filtro)
+
+
+@admin_bp.route('/pedidos/<int:id>')
+def pedido_detalhe(id):
+    """Detalhe de um pedido."""
+    pedido = Order.query.get_or_404(id)
+    return render_template('admin/pedido_detalhe.html', pedido=pedido)
+
+
+@admin_bp.route('/pedidos/<int:id>/status', methods=['POST'])
+def pedido_atualizar_status(id):
+    """Atualizar status de um pedido."""
+    pedido = Order.query.get_or_404(id)
+    novo_status = request.form.get('status')
+    codigo_rastreio = request.form.get('codigo_rastreio', '').strip()
+
+    status_validos = ['pendente', 'aguardando_pagamento', 'pago', 'preparando', 'enviado', 'entregue', 'cancelado']
+    if novo_status not in status_validos:
+        flash('Status inválido.', 'error')
+        return redirect(url_for('admin.pedido_detalhe', id=id))
+
+    pedido.status = novo_status
+    if codigo_rastreio:
+        pedido.codigo_rastreio = codigo_rastreio
+
+    db.session.commit()
+    flash(f'Status do pedido #{pedido.id} atualizado para "{novo_status}".', 'success')
+    return redirect(url_for('admin.pedido_detalhe', id=id))
 
 
 @admin_bp.route('/produtos/novo', methods=['GET', 'POST'])

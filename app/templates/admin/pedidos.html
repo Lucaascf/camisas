@@ -1,0 +1,79 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}Pedidos{% endblock %}
+
+{% block conteudo %}
+<div class="admin-dashboard">
+
+    {# Filtros por status #}
+    <div class="admin-dashboard__header" style="flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <a href="{{ url_for('admin.pedidos') }}"
+               class="admin-btn admin-btn--small {% if not status_filtro %}admin-btn--primary{% endif %}">
+                Todos
+            </a>
+            {% for s, label in [('pendente','Pendente'), ('aguardando_pagamento','Aguardando pagamento'),
+                                ('pago','Pago'), ('preparando','Preparando'), ('enviado','Enviado'),
+                                ('entregue','Entregue'), ('cancelado','Cancelado')] %}
+            <a href="{{ url_for('admin.pedidos', status=s) }}"
+               class="admin-btn admin-btn--small {% if status_filtro == s %}admin-btn--primary{% endif %}">
+                {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th width="70">#Pedido</th>
+                    <th width="140">Data</th>
+                    <th>Cliente</th>
+                    <th width="110">Total</th>
+                    <th width="160">Status</th>
+                    <th width="80">Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                <tr>
+                    <td><strong>#{{ pedido.id }}</strong></td>
+                    <td style="font-size: 0.85rem; color: #666;">
+                        {{ pedido.criado_em.strftime('%d/%m/%Y %H:%M') }}
+                    </td>
+                    <td>
+                        <div>{{ pedido.nome }}</div>
+                        <div style="font-size: 0.8rem; color: #888;">{{ pedido.email }}</div>
+                    </td>
+                    <td>R$ {{ "%.2f"|format(pedido.total) }}</td>
+                    <td>
+                        {% set badge_map = {
+                            'pendente': ('warning', 'Pendente'),
+                            'aguardando_pagamento': ('warning', 'Aguard. pagamento'),
+                            'pago': ('success', 'Pago'),
+                            'preparando': ('info', 'Preparando'),
+                            'enviado': ('blue', 'Enviado'),
+                            'entregue': ('success', 'Entregue'),
+                            'cancelado': ('danger', 'Cancelado')
+                        } %}
+                        {% set badge = badge_map.get(pedido.status, ('default', pedido.status)) %}
+                        <span class="order-badge order-badge--{{ badge[0] }}">{{ badge[1] }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.pedido_detalhe', id=pedido.id) }}"
+                           class="admin-btn admin-btn--small">Ver</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #888;">
+                        Nenhum pedido encontrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

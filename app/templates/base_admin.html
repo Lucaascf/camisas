@@ -17,7 +17,7 @@
                 <a href="{{ url_for('admin.dashboard') }}" class="admin-sidebar__link {% if request.endpoint == 'admin.dashboard' or request.endpoint == 'admin.novo_produto' or request.endpoint == 'admin.editar_produto' %}active{% endif %}">
                     Produtos
                 </a>
-                <a href="#" class="admin-sidebar__link disabled">Pedidos</a>
+                <a href="{{ url_for('admin.pedidos') }}" class="admin-sidebar__link {% if request.endpoint and 'admin.pedido' in request.endpoint %}active{% endif %}">Pedidos</a>
                 <a href="#" class="admin-sidebar__link disabled">Categorias</a>
             </nav>
             <div class="admin-sidebar__footer">
