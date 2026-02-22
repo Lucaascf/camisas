@@ -1,6 +1,18 @@
 {% extends 'base.html' %}
 
-{% block titulo %}{{ categoria.nome if categoria else 'Todas as Camisas' }} — FERRATO{% endblock %}
+{% if categoria %}
+    {% set titulo_pagina = categoria.nome %}
+{% elif filtro == 'promocao' %}
+    {% set titulo_pagina = 'Promoções' %}
+{% elif filtro == 'novos' %}
+    {% set titulo_pagina = 'Nova Coleção' %}
+{% elif filtro == 'ultimas' %}
+    {% set titulo_pagina = 'Últimas Unidades' %}
+{% else %}
+    {% set titulo_pagina = 'Todas as Camisas' %}
+{% endif %}
+
+{% block titulo %}{{ titulo_pagina }} — FERRATO{% endblock %}
 
 {% block conteudo %}
 
@@ -8,18 +20,14 @@
         <nav class="breadcrumb">
             <a href="{{ url_for('main.home') }}" class="breadcrumb__item">Home</a>
             <span class="breadcrumb__separator">/</span>
-            {% if categoria %}
-            <span class="breadcrumb__item breadcrumb__item--active">{{ categoria.nome }}</span>
-            {% else %}
-            <span class="breadcrumb__item breadcrumb__item--active">Todas as Camisas</span>
-            {% endif %}
+            <span class="breadcrumb__item breadcrumb__item--active">{{ titulo_pagina }}</span>
         </nav>
 
-        <h1 class="shop-header__title">{{ categoria.nome if categoria else 'Todas as Camisas' }}</h1>
+        <h1 class="shop-header__title">{{ titulo_pagina }}</h1>
         {% if categoria and categoria.descricao %}
         <p class="shop-header__description">{{ categoria.descricao }}</p>
         {% endif %}
-        <p class="shop-header__count">{{ produtos|length }} produto{{ 's' if produtos|length != 1 else '' }}</p>
+        <p class="shop-header__count">{{ paginacao.total }} produto{{ 's' if paginacao.total != 1 else '' }}</p>
     </section>
 
     <section class="shop-grid">
@@ -59,5 +67,19 @@
             {% endfor %}
         </div>
     </section>
+
+    {% if paginacao and paginacao.pages > 1 %}
+    <div class="pagination">
+        {% if paginacao.has_prev %}
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro if filtro else none, pagina=paginacao.prev_num) }}" class="pagination__btn">&larr; Anterior</a>
+        {% endif %}
+
+        <span class="pagination__info">Página {{ paginacao.page }} de {{ paginacao.pages }}</span>
+
+        {% if paginacao.has_next %}
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro if filtro else none, pagina=paginacao.next_num) }}" class="pagination__btn">Próxima &rarr;</a>
+        {% endif %}
+    </div>
+    {% endif %}
 
 {% endblock %}

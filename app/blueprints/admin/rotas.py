@@ -8,8 +8,8 @@ from functools import wraps
 
 from app import db
 from app.blueprints.admin import admin_bp
-from app.forms import ProductForm
-from app.models import Product, Category, ProductImage, ProductVariant, Order
+from app.forms import ProductForm, CategoryForm
+from app.models import Product, Category, ProductImage, ProductVariant, Order, User
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,37 @@ def admin_required(f):
 
 @admin_bp.route('/')
 def dashboard():
-    """Dashboard admin com lista de produtos."""
+    """Dashboard admin com lista de produtos e estatísticas."""
+    from sqlalchemy import func
     produtos = Product.query.order_by(Product.criado_em.desc()).all()
-    return render_template('admin/dashboard.html', produtos=produtos)
+
+    # Estatísticas
+    total_pedidos = Order.query.count()
+    pedidos_pendentes = Order.query.filter(Order.status.in_(['pendente', 'aguardando_pagamento'])).count()
+    receita_total = db.session.query(
+        func.coalesce(func.sum(Order.total), 0)
+    ).filter(Order.status.in_(['pago', 'preparando', 'enviado', 'entregue'])).scalar()
+    total_usuarios = User.query.count()
+
+    # Produtos com estoque baixo (variantes ativas com estoque < 5)
+    from app.models import ProductVariant
+    estoque_baixo = db.session.query(Product).join(
+        ProductVariant, Product.id == ProductVariant.product_id
+    ).filter(
+        ProductVariant.ativo == True,
+        ProductVariant.estoque < 5,
+        Product.ativo == True
+    ).distinct().all()
+
+    return render_template(
+        'admin/dashboard.html',
+        produtos=produtos,
+        total_pedidos=total_pedidos,
+        pedidos_pendentes=pedidos_pendentes,
+        receita_total=receita_total,
+        total_usuarios=total_usuarios,
+        estoque_baixo=estoque_baixo,
+    )
 
 
 @admin_bp.route('/pedidos')
@@ -377,3 +405,102 @@ def salvar_variantes(id):
     except Exception as e:
         db.session.rollback()
         return jsonify(sucesso=False, mensagem=str(e)), 500
+
+
+# ==================== CATEGORIAS ====================
+
+@admin_bp.route('/categorias')
+def categorias():
+    """Listar todas as categorias."""
+    cats = Category.query.order_by(Category.nome).all()
+    return render_template('admin/categorias.html', categorias=cats)
+
+
+@admin_bp.route('/categorias/nova', methods=['GET', 'POST'])
+def nova_categoria():
+    """Criar nova categoria."""
+    form = CategoryForm()
+
+    if form.validate_on_submit():
+        slug = form.slug.data
+        if not slug:
+            slug = re.sub(r'[^\w\s-]', '', form.nome.data.lower())
+            slug = slug.replace(' ', '-')
+
+        categoria = Category(
+            nome=form.nome.data,
+            slug=slug,
+            descricao=form.descricao.data,
+            imagem_url=form.imagem_url.data or None,
+        )
+        db.session.add(categoria)
+        db.session.commit()
+
+        flash(f'Categoria "{categoria.nome}" criada com sucesso!', 'success')
+        return redirect(url_for('admin.categorias'))
+
+    return render_template('admin/categoria_form.html', form=form, categoria=None)
+
+
+@admin_bp.route('/categorias/<int:id>/editar', methods=['GET', 'POST'])
+def editar_categoria(id):
+    """Editar categoria existente."""
+    categoria = Category.query.get_or_404(id)
+
+    if request.method == 'GET':
+        form = CategoryForm(categoria_id=categoria.id, obj=categoria)
+    else:
+        form = CategoryForm(categoria_id=categoria.id)
+
+    if form.validate_on_submit():
+        slug = form.slug.data
+        if not slug:
+            slug = re.sub(r'[^\w\s-]', '', form.nome.data.lower())
+            slug = slug.replace(' ', '-')
+
+        categoria.nome = form.nome.data
+        categoria.slug = slug
+        categoria.descricao = form.descricao.data
+        categoria.imagem_url = form.imagem_url.data or None
+        db.session.commit()
+
+        flash(f'Categoria "{categoria.nome}" atualizada com sucesso!', 'success')
+        return redirect(url_for('admin.categorias'))
+
+    return render_template('admin/categoria_form.html', form=form, categoria=categoria)
+
+
+@admin_bp.route('/categorias/<int:id>/deletar', methods=['POST'])
+def deletar_categoria(id):
+    """Deletar categoria (apenas se não tiver produtos associados)."""
+    categoria = Category.query.get_or_404(id)
+
+    if categoria.products:
+        flash(
+            f'A categoria "{categoria.nome}" possui {len(categoria.products)} produto(s) '
+            'e não pode ser deletada. Mova ou remova os produtos primeiro.',
+            'error'
+        )
+        return redirect(url_for('admin.categorias'))
+
+    nome = categoria.nome
+    db.session.delete(categoria)
+    db.session.commit()
+    flash(f'Categoria "{nome}" deletada com sucesso!', 'success')
+    return redirect(url_for('admin.categorias'))
+
+
+# ==================== USUÁRIOS ====================
+
+@admin_bp.route('/usuarios')
+def usuarios():
+    """Listar todos os usuários."""
+    from sqlalchemy import func
+    usuarios_lista = db.session.query(
+        User,
+        func.count(Order.id).label('total_pedidos')
+    ).outerjoin(Order, User.id == Order.user_id).group_by(User.id).order_by(User.criado_em.desc()).all()
+
+    return render_template('admin/usuarios.html', usuarios=usuarios_lista)
+
+

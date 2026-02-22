@@ -4,6 +4,36 @@
 
 {% block conteudo %}
 <div class="admin-dashboard">
+
+    <!-- Stats -->
+    <div class="admin-stats">
+        <div class="admin-stat">
+            <div class="admin-stat__value">{{ total_pedidos }}</div>
+            <div class="admin-stat__label">Total de Pedidos</div>
+        </div>
+        <div class="admin-stat admin-stat--warning">
+            <div class="admin-stat__value">{{ pedidos_pendentes }}</div>
+            <div class="admin-stat__label">Aguardando</div>
+        </div>
+        <div class="admin-stat admin-stat--success">
+            <div class="admin-stat__value">R$ {{ "%.2f"|format(receita_total) }}</div>
+            <div class="admin-stat__label">Receita Confirmada</div>
+        </div>
+        <div class="admin-stat">
+            <div class="admin-stat__value">{{ total_usuarios }}</div>
+            <div class="admin-stat__label">Usuários</div>
+        </div>
+    </div>
+
+    {% if estoque_baixo %}
+    <div class="admin-alert admin-alert--warning">
+        <strong>Estoque baixo:</strong>
+        {% for p in estoque_baixo %}
+            <a href="{{ url_for('admin.editar_produto', id=p.id) }}">{{ p.nome }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="admin-dashboard__header">
         <a href="{{ url_for('admin.novo_produto') }}" class="admin-btn admin-btn--primary">+ Novo Produto</a>
     </div>
@@ -45,7 +75,7 @@
                             R$ {{ "%.2f"|format(produto.preco) }}
                         {% endif %}
                     </td>
-                    <td>{{ produto.estoque }}</td>
+                    <td>{{ produto.estoque_total }}</td>
                     <td>
                         <span class="admin-status admin-status--{% if produto.ativo %}active{% else %}inactive{% endif %}">
                             {% if produto.ativo %}Ativo{% else %}Inativo{% endif %}

@@ -532,3 +532,60 @@
         overflow-x: auto;
     }
 }
+
+/* ========== STATS ========== */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.admin-stat {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    padding: 20px 24px;
+}
+
+.admin-stat__value {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.2;
+}
+
+.admin-stat__label {
+    font-size: 13px;
+    color: #6B7280;
+    margin-top: 4px;
+}
+
+.admin-stat--success .admin-stat__value { color: #059669; }
+.admin-stat--warning .admin-stat__value { color: #D97706; }
+.admin-stat--danger  .admin-stat__value { color: #DC2626; }
+
+/* ========== ALERTS ========== */
+.admin-alert {
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    border-left: 4px solid currentColor;
+}
+
+.admin-alert--warning {
+    background: #FFFBEB;
+    color: #92400E;
+    border-color: #F59E0B;
+}
+
+.admin-alert a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+/* ========== FORM ACTIONS ========== */
+.admin-form__actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}

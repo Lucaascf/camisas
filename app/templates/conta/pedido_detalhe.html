@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block titulo %}Pedido #{{ pedido.codigo_cliente or pedido.id }} — FERRATO{% endblock %}
+
+{% block conteudo %}
+<section class="conta-page">
+    <div class="conta-container">
+
+        <div class="conta-header">
+            <a href="{{ url_for('main.meus_pedidos') }}" class="conta-back">&larr; Meus Pedidos</a>
+            <h1 class="conta-title">Pedido #{{ pedido.codigo_cliente or pedido.id }}</h1>
+            <p class="conta-subtitle">Realizado em {{ pedido.criado_em | hora_brasilia('%d/%m/%Y às %H:%M') }}</p>
+        </div>
+
+        {% set status_label = {
+            'pendente': ('Pendente', 'status--pending'),
+            'aguardando_pagamento': ('Aguardando Pagamento', 'status--pending'),
+            'pago': ('Pago', 'status--paid'),
+            'preparando': ('Preparando', 'status--preparing'),
+            'enviado': ('Enviado', 'status--shipped'),
+            'entregue': ('Entregue', 'status--delivered'),
+            'cancelado': ('Cancelado', 'status--cancelled'),
+        } %}
+        {% set s_info = status_label.get(pedido.status, (pedido.status, 'status--pending')) %}
+
+        <div class="conta-order-detail">
+
+            <!-- Status + Rastreio -->
+            <div class="conta-detail-section">
+                <div class="conta-detail-row">
+                    <span class="conta-detail-label">Status:</span>
+                    <span class="conta-order-status {{ s_info[1] }}">{{ s_info[0] }}</span>
+                </div>
+                {% if pedido.codigo_rastreio %}
+                <div class="conta-detail-row">
+                    <span class="conta-detail-label">Código de rastreio:</span>
+                    <strong>{{ pedido.codigo_rastreio }}</strong>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Itens -->
+            <div class="conta-detail-section">
+                <h2 class="conta-detail-section__title">Itens do Pedido</h2>
+                <div class="conta-items">
+                    {% for item in pedido.items %}
+                    <div class="conta-item">
+                        <div class="conta-item__info">
+                            <p class="conta-item__name">{{ item.product.nome if item.product else '(produto removido)' }}</p>
+                            {% if item.tamanho %}
+                            <p class="conta-item__size">Tamanho: {{ item.tamanho }}</p>
+                            {% endif %}
+                            <p class="conta-item__qty">Quantidade: {{ item.quantidade }}</p>
+                        </div>
+                        <div class="conta-item__price">
+                            R$ {{ "%.2f"|format(item.preco_unitario * item.quantidade)|replace('.', ',') }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="conta-items__total">
+                    {% if pedido.frete_valor and pedido.frete_valor > 0 %}
+                    <div class="conta-items__total-row">
+                        <span>Frete ({{ pedido.frete_tipo or 'Padrão' }}):</span>
+                        <span>R$ {{ "%.2f"|format(pedido.frete_valor)|replace('.', ',') }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="conta-items__total-row conta-items__total-row--final">
+                        <span>Total:</span>
+                        <span>R$ {{ "%.2f"|format(pedido.total)|replace('.', ',') }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <div class="conta-detail-section">
+                <h2 class="conta-detail-section__title">Endereço de Entrega</h2>
+                <p class="conta-address">
+                    {{ pedido.endereco }}, {{ pedido.numero }}
+                    {% if pedido.complemento %} — {{ pedido.complemento }}{% endif %}<br>
+                    {{ pedido.bairro }}<br>
+                    {{ pedido.cidade }} — {{ pedido.estado }}, CEP {{ pedido.cep }}
+                </p>
+            </div>
+
+        </div>
+
+        <div class="conta-actions">
+            <a href="{{ url_for('shop.listagem') }}" class="conta-btn">Continuar Comprando</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

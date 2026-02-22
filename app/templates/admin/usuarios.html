@@ -1,0 +1,36 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}Usuários{% endblock %}
+
+{% block conteudo %}
+<div class="admin-dashboard">
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th width="100">Pedidos</th>
+                    <th width="120">Cadastro</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario, total_pedidos in usuarios %}
+                <tr>
+                    <td><strong>{{ usuario.nome }}</strong></td>
+                    <td>{{ usuario.email }}</td>
+                    <td>{{ total_pedidos }}</td>
+                    <td>{{ usuario.criado_em | hora_brasilia('%d/%m/%Y') }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align:center; padding: 2rem; color: var(--admin-text-muted);">
+                        Nenhum usuário cadastrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

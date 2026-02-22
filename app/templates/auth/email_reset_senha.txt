@@ -1,0 +1,15 @@
+FERRATO — Redefinição de senha
+
+Olá, {{ nome }}!
+
+Recebemos uma solicitação para redefinir a senha da sua conta FERRATO.
+
+Clique no link abaixo para criar uma nova senha:
+{{ link }}
+
+Este link é válido por 30 minutos.
+
+Se você não solicitou a redefinição de senha, ignore este email — sua senha não será alterada.
+
+---
+FERRATO | Moda Masculina

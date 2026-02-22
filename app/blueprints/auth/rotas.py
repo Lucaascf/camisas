@@ -5,7 +5,7 @@ from flask_login import login_user, logout_user, current_user
 
 from app import db
 from app.blueprints.auth import auth_bp
-from app.forms import LoginForm, RegistroForm, RegistroEmailForm, VerificarEmailForm
+from app.forms import LoginForm, RegistroForm, RegistroEmailForm, VerificarEmailForm, EsqueceuSenhaForm, RedefinirSenhaForm
 from app.models import User, CartItem
 
 
@@ -166,6 +166,73 @@ def logout():
     logout_user()
     flash('Você saiu da sua conta.', 'info')
     return redirect(url_for('main.home'))
+
+
+@auth_bp.route('/esqueci-senha', methods=['GET', 'POST'])
+def esqueci_senha():
+    """Solicitar redefinição de senha."""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+
+    from app.blueprints.auth.email_service import enviar_email_reset_senha, criar_token_reset_senha
+
+    form = EsqueceuSenhaForm()
+    if form.validate_on_submit():
+        email = form.email.data.lower()
+        user = User.query.filter_by(email=email).first()
+
+        # Sempre mostrar a mesma mensagem para não revelar se o email existe
+        flash(
+            'Se este email estiver cadastrado, você receberá as instruções de redefinição em instantes.',
+            'success'
+        )
+
+        if user:
+            token = criar_token_reset_senha(user.email)
+            enviar_email_reset_senha(user.email, user.nome, token)
+
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/esqueci_senha.html', form=form)
+
+
+@auth_bp.route('/redefinir-senha/<token>', methods=['GET', 'POST'])
+def redefinir_senha(token):
+    """Redefinir senha com token válido."""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+
+    from app.models import PasswordResetToken
+    from datetime import datetime, timezone
+
+    reset_token = PasswordResetToken.query.filter_by(token=token, usado=False).first()
+
+    agora = datetime.now(timezone.utc)
+    if not reset_token:
+        flash('Link de redefinição inválido ou já utilizado.', 'error')
+        return redirect(url_for('auth.esqueci_senha'))
+
+    expira_em = reset_token.expira_em
+    if expira_em.tzinfo is None:
+        expira_em = expira_em.replace(tzinfo=timezone.utc)
+    if agora > expira_em:
+        flash('Link de redefinição expirado. Solicite um novo.', 'error')
+        return redirect(url_for('auth.esqueci_senha'))
+
+    form = RedefinirSenhaForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=reset_token.email).first()
+        if user:
+            user.set_senha(form.senha.data)
+            reset_token.usado = True
+            db.session.commit()
+            flash('Senha redefinida com sucesso! Faça login com sua nova senha.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('Usuário não encontrado.', 'error')
+            return redirect(url_for('auth.esqueci_senha'))
+
+    return render_template('auth/redefinir_senha.html', form=form, token=token)
 
 
 def merge_anonymous_cart_to_user(user_id):

@@ -31,6 +31,10 @@
                 <label for="lembrar" class="auth-form__checkbox-label">Lembrar-me</label>
             </div>
 
+            <div class="auth-form__forgot">
+                <a href="{{ url_for('auth.esqueci_senha') }}" class="auth-form__forgot-link">Esqueci minha senha</a>
+            </div>
+
             <button type="submit" class="auth-form__btn">Entrar</button>
         </form>
 

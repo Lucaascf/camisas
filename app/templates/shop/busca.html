@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{% if termo %}Busca: {{ termo }}{% else %}Buscar produtos{% endif %} — FERRATO{% endblock %}
+
+{% block conteudo %}
+
+    <section class="shop-header">
+        <nav class="breadcrumb">
+            <a href="{{ url_for('main.home') }}" class="breadcrumb__item">Home</a>
+            <span class="breadcrumb__separator">/</span>
+            <span class="breadcrumb__item breadcrumb__item--active">Busca</span>
+        </nav>
+
+        <h1 class="shop-header__title" id="busca-titulo">Buscar Produtos</h1>
+
+        <form class="busca-form" id="busca-form" onsubmit="return false;">
+            <input
+                type="text"
+                id="busca-input"
+                name="q"
+                value="{{ termo }}"
+                placeholder="Buscar produtos..."
+                class="busca-form__input"
+                autocomplete="off"
+                autofocus
+            >
+            <span class="busca-loading" id="busca-loading" aria-hidden="true"></span>
+        </form>
+
+        <p class="shop-header__count" id="busca-count" style="display:none;"></p>
+    </section>
+
+    <div id="busca-resultados"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var input    = document.getElementById('busca-input');
+    var titulo   = document.getElementById('busca-titulo');
+    var count    = document.getElementById('busca-count');
+    var loading  = document.getElementById('busca-loading');
+    var resultados = document.getElementById('busca-resultados');
+
+    var debounceTimer = null;
+    var baseUrl = '{{ url_for("shop.busca_json") }}';
+    var produtoUrl = '{{ url_for("shop.produto", slug="__SLUG__") }}';
+    var listagemUrl = '{{ url_for("shop.listagem") }}';
+
+    function formatPreco(valor) {
+        return 'R$ ' + valor.toFixed(2).replace('.', ',');
+    }
+
+    function renderCards(produtos) {
+        if (produtos.length === 0) return null;
+        var grid = document.createElement('section');
+        grid.className = 'shop-grid';
+        var inner = document.createElement('div');
+        inner.className = 'products__grid';
+        grid.appendChild(inner);
+
+        produtos.forEach(function (p) {
+            var href = produtoUrl.replace('__SLUG__', p.slug);
+            var outOfStock = p.estoque_total === 0;
+            var badgeHtml = '';
+            if (outOfStock) {
+                badgeHtml = '<span class="product-card__badge product-card__badge--out-of-stock">Sem Estoque</span>';
+            } else if (p.novo) {
+                badgeHtml = '<span class="product-card__badge product-card__badge--new">Novo</span>';
+            } else if (p.em_promocao) {
+                badgeHtml = '<span class="product-card__badge product-card__badge--sale">-' + p.percentual_desconto + '%</span>';
+            }
+
+            var imagemHtml = p.imagem
+                ? '<img src="' + escapeHtml(p.imagem) + '" alt="' + escapeHtml(p.nome) + '" class="product-card__image">'
+                : '<div class="product-card__placeholder"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Foto</span></div>';
+
+            var precoHtml = p.em_promocao
+                ? '<p class="product-card__price"><span class="product-card__price--old">' + formatPreco(p.preco) + '</span> <span class="product-card__price--sale">' + formatPreco(p.preco_promocional) + '</span></p>'
+                : '<p class="product-card__price">' + formatPreco(p.preco) + '</p>';
+
+            var card = document.createElement('a');
+            card.href = href;
+            card.className = 'product-card' + (outOfStock ? ' product-card--out-of-stock' : '');
+            card.innerHTML =
+                '<div class="product-card__image-wrapper">' + imagemHtml + badgeHtml + '</div>' +
+                '<div class="product-card__info">' +
+                    '<p class="product-card__category">' + escapeHtml(p.categoria) + '</p>' +
+                    '<h3 class="product-card__name">' + escapeHtml(p.nome) + '</h3>' +
+                    precoHtml +
+                '</div>';
+            inner.appendChild(card);
+        });
+        return grid;
+    }
+
+    function renderVazio(termo) {
+        var sec = document.createElement('section');
+        sec.className = 'shop-grid';
+        sec.innerHTML =
+            '<div class="busca-empty">' +
+                '<svg viewBox="0 0 24 24" class="busca-empty__icon"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>' +
+                '<h2 class="busca-empty__title">Nenhum resultado encontrado</h2>' +
+                '<p class="busca-empty__text">Nenhum resultado para \u201c' + escapeHtml(termo) + '\u201d. Tente palavras diferentes ou explore nossa coleção.</p>' +
+                '<a href="' + listagemUrl + '" class="busca-empty__btn">Ver todos os produtos</a>' +
+            '</div>';
+        return sec;
+    }
+
+    function renderInicial() {
+        var sec = document.createElement('section');
+        sec.className = 'shop-grid';
+        sec.innerHTML =
+            '<div class="busca-empty">' +
+                '<svg viewBox="0 0 24 24" class="busca-empty__icon"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>' +
+                '<p class="busca-empty__text">Digite acima para buscar produtos.</p>' +
+            '</div>';
+        return sec;
+    }
+
+    function escapeHtml(str) {
+        var d = document.createElement('div');
+        d.appendChild(document.createTextNode(str || ''));
+        return d.innerHTML;
+    }
+
+    function setEstado(estado, data) {
+        resultados.innerHTML = '';
+        count.style.display = 'none';
+
+        if (estado === 'inicial') {
+            titulo.textContent = 'Buscar Produtos';
+            resultados.appendChild(renderInicial());
+        } else if (estado === 'resultados') {
+            titulo.textContent = 'Resultados para \u201c' + data.termo + '\u201d';
+            count.textContent = data.total + ' resultado' + (data.total !== 1 ? 's' : '') + ' encontrado' + (data.total !== 1 ? 's' : '');
+            count.style.display = '';
+            var grid = renderCards(data.produtos);
+            if (grid) resultados.appendChild(grid);
+        } else if (estado === 'vazio') {
+            titulo.textContent = 'Resultados para \u201c' + data.termo + '\u201d';
+            count.textContent = '0 resultados encontrados';
+            count.style.display = '';
+            resultados.appendChild(renderVazio(data.termo));
+        }
+    }
+
+    function executarBusca(termo) {
+        loading.classList.add('busca-loading--ativo');
+        fetch(baseUrl + '?q=' + encodeURIComponent(termo))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                loading.classList.remove('busca-loading--ativo');
+                history.replaceState(null, '', '?q=' + encodeURIComponent(termo));
+                if (data.total === 0) {
+                    setEstado('vazio', { termo: termo });
+                } else {
+                    setEstado('resultados', { termo: termo, total: data.total, produtos: data.produtos });
+                }
+            })
+            .catch(function () {
+                loading.classList.remove('busca-loading--ativo');
+            });
+    }
+
+    input.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        var termo = input.value.trim();
+        if (termo.length < 2) {
+            history.replaceState(null, '', location.pathname);
+            setEstado('inicial');
+            return;
+        }
+        debounceTimer = setTimeout(function () {
+            executarBusca(termo);
+        }, 300);
+    });
+
+    // Inicialização: se ?q= existe na URL, busca imediatamente
+    var termoInicial = input.value.trim();
+    if (termoInicial.length >= 2) {
+        executarBusca(termoInicial);
+    } else {
+        setEstado('inicial');
+    }
+})();
+</script>
+{% endblock %}

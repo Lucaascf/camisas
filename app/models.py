@@ -225,6 +225,43 @@ class OrderItem(db.Model):
         return f'<OrderItem order={self.order_id} product={self.product_id} variant={self.variant_id}>'
 
 
+class PasswordResetToken(db.Model):
+    """Token de redefinição de senha."""
+
+    __tablename__ = 'password_reset_token'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    token = db.Column(db.String(64), nullable=False, unique=True)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    expira_em = db.Column(db.DateTime, nullable=False)
+    usado = db.Column(db.Boolean, default=False)
+
+    def __repr__(self):
+        return f'<PasswordResetToken {self.email}>'
+
+
+class Wishlist(db.Model):
+    """Lista de desejos do usuário."""
+
+    __tablename__ = 'wishlist'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref='wishlist_items', lazy=True)
+    product = db.relationship('Product', backref='wishlist_items', lazy=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'product_id', name='uq_wishlist_user_product'),
+    )
+
+    def __repr__(self):
+        return f'<Wishlist user={self.user_id} product={self.product_id}>'
+
+
 class ProductImage(db.Model):
     """Imagem de produto armazenada no banco de dados."""
 

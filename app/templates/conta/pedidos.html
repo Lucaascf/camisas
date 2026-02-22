@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block titulo %}Meus Pedidos — FERRATO{% endblock %}
+
+{% block conteudo %}
+<section class="conta-page">
+    <div class="conta-container">
+        <div class="conta-header">
+            <h1 class="conta-title">Meus Pedidos</h1>
+            <p class="conta-subtitle">Olá, {{ current_user.nome }}. Aqui estão seus pedidos.</p>
+        </div>
+
+        {% if pedidos %}
+        <div class="conta-orders">
+            {% for pedido in pedidos %}
+            {% set status_label = {
+                'pendente': ('Pendente', 'status--pending'),
+                'aguardando_pagamento': ('Aguardando Pagamento', 'status--pending'),
+                'pago': ('Pago', 'status--paid'),
+                'preparando': ('Preparando', 'status--preparing'),
+                'enviado': ('Enviado', 'status--shipped'),
+                'entregue': ('Entregue', 'status--delivered'),
+                'cancelado': ('Cancelado', 'status--cancelled'),
+            } %}
+            {% set s_info = status_label.get(pedido.status, (pedido.status, 'status--pending')) %}
+            <a href="{{ url_for('main.meu_pedido_detalhe', id=pedido.id) }}" class="conta-order-card">
+                <div class="conta-order-card__header">
+                    <div>
+                        <span class="conta-order-card__code">#{{ pedido.codigo_cliente or pedido.id }}</span>
+                        <span class="conta-order-card__date">{{ pedido.criado_em | hora_brasilia('%d/%m/%Y') }}</span>
+                    </div>
+                    <span class="conta-order-status {{ s_info[1] }}">{{ s_info[0] }}</span>
+                </div>
+                <div class="conta-order-card__body">
+                    <div class="conta-order-card__items">
+                        {% for item in pedido.items %}
+                        <span class="conta-order-card__item">
+                            {{ item.product.nome if item.product else '(produto removido)' }}
+                            {% if item.tamanho %}({{ item.tamanho }}){% endif %}
+                            × {{ item.quantidade }}
+                        </span>
+                        {% if not loop.last %}<span> · </span>{% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="conta-order-card__total">
+                        R$ {{ "%.2f"|format(pedido.total)|replace('.', ',') }}
+                    </div>
+                </div>
+                {% if pedido.codigo_rastreio %}
+                <div class="conta-order-card__tracking">
+                    Rastreio: <strong>{{ pedido.codigo_rastreio }}</strong>
+                </div>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="conta-empty">
+            <svg viewBox="0 0 24 24" class="conta-empty__icon"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            <h2 class="conta-empty__title">Nenhum pedido ainda</h2>
+            <p class="conta-empty__text">Você ainda não realizou nenhum pedido.</p>
+            <a href="{{ url_for('shop.listagem') }}" class="conta-empty__btn">Explorar Produtos</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

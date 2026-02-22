@@ -6,12 +6,35 @@
     <div class="header__main">
         <a href="{{ url_for('main.home') }}" class="header__logo">FERRATO</a>
         <nav class="header__nav">
-            {% for cat in nav_categories %}
-            <a href="{{ url_for('shop.listagem', slug=cat.slug) }}" class="header__nav-link">{{ cat.nome }}</a>
-            {% endfor %}
+            <div class="header__nav-item">
+                <span class="header__nav-link">
+                    Camisas
+                    <svg class="header__nav-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+                <div class="header__nav-dropdown">
+                    <a href="{{ url_for('shop.listagem') }}" class="header__nav-dropdown-link">Todas as Camisas</a>
+                    {% for cat in nav_categories %}
+                    <a href="{{ url_for('shop.listagem', slug=cat.slug) }}" class="header__nav-dropdown-link">{{ cat.nome }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <a href="{{ url_for('shop.listagem') }}?filtro=novos" class="header__nav-link">Nova Coleção</a>
+
+            <div class="header__nav-item">
+                <span class="header__nav-link header__nav-link--gold">
+                    Ofertas
+                    <svg class="header__nav-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+                <div class="header__nav-dropdown">
+                    <a href="{{ url_for('shop.listagem') }}?filtro=promocao" class="header__nav-dropdown-link header__nav-dropdown-link--gold">Promoções</a>
+                    <a href="{{ url_for('shop.listagem') }}?filtro=ultimas" class="header__nav-dropdown-link">Últimas Unidades</a>
+                </div>
+            </div>
         </nav>
         <div class="header__actions">
-            <button class="header__action-btn" aria-label="Buscar">
+            <!-- Busca -->
+            <button class="header__action-btn" aria-label="Buscar" id="search-toggle">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
             </button>
 
@@ -25,10 +48,13 @@
                             <p class="header__account-name">{{ current_user.nome }}</p>
                             <p class="header__account-email">{{ current_user.email }}</p>
                         </div>
+                        <a href="{{ url_for('main.meus_pedidos') }}" class="header__account-link">Meus Pedidos</a>
+                        <a href="{{ url_for('main.meus_favoritos') }}" class="header__account-link">Favoritos</a>
                         <a href="{{ url_for('auth.logout') }}" class="header__account-link">Sair</a>
                     {% else %}
                         <a href="{{ url_for('auth.login') }}" class="header__account-link">Entrar</a>
                         <a href="{{ url_for('auth.registro') }}" class="header__account-link">Criar conta</a>
+                        <a href="{{ url_for('auth.esqueci_senha') }}" class="header__account-link header__account-link--muted">Esqueci minha senha</a>
                     {% endif %}
                 </div>
             </div>
@@ -40,3 +66,99 @@
         </div>
     </div>
 </header>
+
+<!-- ========== SEARCH OVERLAY (fora do <header>) ========== -->
+<div class="search-overlay" id="search-overlay">
+    <div class="search-overlay__inner">
+        <svg class="search-overlay__icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+        <form action="{{ url_for('shop.busca') }}" method="GET" class="search-overlay__form" id="search-overlay-form">
+            <input type="text" name="q" id="search-overlay-input" autocomplete="off" placeholder="Buscar produtos..." class="search-overlay__input">
+        </form>
+        <button type="button" class="search-overlay__close" id="search-overlay-close" aria-label="Fechar busca">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+    </div>
+    <div id="search-overlay-suggestions" class="search-overlay__suggestions"></div>
+</div>
+
+<script>
+(function() {
+    var toggle     = document.getElementById('search-toggle');
+    var overlay    = document.getElementById('search-overlay');
+    var input      = document.getElementById('search-overlay-input');
+    var closeBtn   = document.getElementById('search-overlay-close');
+    var suggestBox = document.getElementById('search-overlay-suggestions');
+    var jsonUrl    = '{{ url_for("shop.busca_json") }}';
+    var prodUrl    = '{{ url_for("shop.produto", slug="__SLUG__") }}';
+    var debounce;
+
+    function openOverlay() {
+        overlay.classList.add('search-overlay--visible');
+        input.focus();
+    }
+    function closeOverlay() {
+        overlay.classList.remove('search-overlay--visible');
+        suggestBox.innerHTML = '';
+        suggestBox.style.display = 'none';
+        input.value = '';
+    }
+
+    toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openOverlay();
+    });
+
+    closeBtn.addEventListener('click', closeOverlay);
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeOverlay();
+    });
+
+    input.addEventListener('input', function() {
+        clearTimeout(debounce);
+        var q = input.value.trim();
+        if (q.length < 2) {
+            suggestBox.innerHTML = '';
+            suggestBox.style.display = 'none';
+            return;
+        }
+        debounce = setTimeout(function() {
+            fetch(jsonUrl + '?q=' + encodeURIComponent(q))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    suggestBox.innerHTML = '';
+                    if (data.total === 0) {
+                        suggestBox.style.display = 'none';
+                        return;
+                    }
+                    data.produtos.slice(0, 6).forEach(function(p) {
+                        var a = document.createElement('a');
+                        a.href = prodUrl.replace('__SLUG__', p.slug);
+                        a.className = 'header__suggestion-item';
+
+                        var precoTxt = p.em_promocao
+                            ? 'R$ ' + p.preco_promocional.toFixed(2).replace('.', ',')
+                            : 'R$ ' + p.preco.toFixed(2).replace('.', ',');
+
+                        a.innerHTML =
+                            (p.imagem ? '<img src="' + p.imagem + '" alt="" class="header__suggestion-img">' : '<div class="header__suggestion-img header__suggestion-img--empty"></div>') +
+                            '<span class="header__suggestion-info">' +
+                                '<span class="header__suggestion-name">' + p.nome + '</span>' +
+                                '<span class="header__suggestion-cat">' + p.categoria + '</span>' +
+                            '</span>' +
+                            '<span class="header__suggestion-price">' + precoTxt + '</span>';
+                        suggestBox.appendChild(a);
+                    });
+                    if (data.total > 6) {
+                        var more = document.createElement('a');
+                        more.href = '{{ url_for("shop.busca") }}?q=' + encodeURIComponent(q);
+                        more.className = 'header__suggestion-more';
+                        more.textContent = 'Ver todos os ' + data.total + ' resultados';
+                        suggestBox.appendChild(more);
+                    }
+                    suggestBox.style.display = 'block';
+                });
+        }, 250);
+    });
+})();
+</script>

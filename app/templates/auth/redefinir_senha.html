@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block titulo %}Redefinir senha - FERRATO{% endblock %}
+
+{% block conteudo %}
+<div class="auth-page">
+    <div class="auth-container">
+        <h1 class="auth-page__title">Redefinir senha</h1>
+        <p class="auth-page__subtitle">Escolha uma nova senha para sua conta.</p>
+
+        <form method="POST" class="auth-form" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="auth-form__group">
+                <label for="senha" class="auth-form__label">Nova Senha</label>
+                {{ form.senha(class_="auth-form__input", placeholder="••••••") }}
+                {% if form.senha.errors %}
+                    <span class="auth-form__error">{{ form.senha.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="auth-form__group">
+                <label for="confirmar_senha" class="auth-form__label">Confirmar Nova Senha</label>
+                {{ form.confirmar_senha(class_="auth-form__input", placeholder="••••••") }}
+                {% if form.confirmar_senha.errors %}
+                    <span class="auth-form__error">{{ form.confirmar_senha.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="auth-form__btn">Redefinir Senha</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

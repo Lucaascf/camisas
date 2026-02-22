@@ -147,6 +147,70 @@ class ProductForm(FlaskForm):
                 raise ValidationError('Preço promocional deve ser menor que o preço base.')
 
 
+class CategoryForm(FlaskForm):
+    """Formulário de categoria para admin."""
+
+    nome = StringField('Nome', validators=[
+        DataRequired(message='Nome é obrigatório'),
+        Length(max=50, message='Nome muito longo')
+    ])
+
+    slug = StringField('Slug (URL)', validators=[
+        Optional(),
+        Length(max=50, message='Slug muito longo')
+    ])
+
+    descricao = StringField('Descrição', validators=[
+        Optional(),
+        Length(max=200, message='Descrição muito longa')
+    ])
+
+    imagem_url = StringField('URL da Imagem', validators=[
+        Optional(),
+        Length(max=300)
+    ])
+
+    def __init__(self, categoria_id=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.categoria_id = categoria_id
+
+    def validate_nome(self, field):
+        query = Category.query.filter(Category.nome == field.data)
+        if self.categoria_id:
+            query = query.filter(Category.id != self.categoria_id)
+        if query.first():
+            raise ValidationError('Já existe uma categoria com este nome.')
+
+    def validate_slug(self, field):
+        if field.data:
+            query = Category.query.filter(Category.slug == field.data)
+            if self.categoria_id:
+                query = query.filter(Category.id != self.categoria_id)
+            if query.first():
+                raise ValidationError('Este slug já está em uso.')
+
+
+class EsqueceuSenhaForm(FlaskForm):
+    """Formulário para solicitar recuperação de senha."""
+
+    email = StringField('Email', validators=[
+        DataRequired(message='Email é obrigatório')
+    ])
+
+
+class RedefinirSenhaForm(FlaskForm):
+    """Formulário para redefinir a senha."""
+
+    senha = PasswordField('Nova Senha', validators=[
+        DataRequired(message='Senha é obrigatória'),
+        Length(min=6, message='Senha deve ter no mínimo 6 caracteres')
+    ])
+    confirmar_senha = PasswordField('Confirmar Nova Senha', validators=[
+        DataRequired(message='Confirmação de senha é obrigatória'),
+        EqualTo('senha', message='As senhas devem ser iguais')
+    ])
+
+
 class CheckoutForm(FlaskForm):
     """Formulário de checkout para finalização de compra."""
 

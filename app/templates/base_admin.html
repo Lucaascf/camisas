@@ -14,11 +14,12 @@
         <aside class="admin-sidebar">
             <div class="admin-sidebar__logo">FERRATO Admin</div>
             <nav class="admin-sidebar__nav">
-                <a href="{{ url_for('admin.dashboard') }}" class="admin-sidebar__link {% if request.endpoint == 'admin.dashboard' or request.endpoint == 'admin.novo_produto' or request.endpoint == 'admin.editar_produto' %}active{% endif %}">
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-sidebar__link {% if request.endpoint in ('admin.dashboard', 'admin.novo_produto', 'admin.editar_produto') %}active{% endif %}">
                     Produtos
                 </a>
                 <a href="{{ url_for('admin.pedidos') }}" class="admin-sidebar__link {% if request.endpoint and 'admin.pedido' in request.endpoint %}active{% endif %}">Pedidos</a>
-                <a href="#" class="admin-sidebar__link disabled">Categorias</a>
+                <a href="{{ url_for('admin.categorias') }}" class="admin-sidebar__link {% if request.endpoint and 'categoria' in request.endpoint %}active{% endif %}">Categorias</a>
+                <a href="{{ url_for('admin.usuarios') }}" class="admin-sidebar__link {% if request.endpoint and 'usuario' in request.endpoint %}active{% endif %}">Usuários</a>
             </nav>
             <div class="admin-sidebar__footer">
                 <div class="admin-sidebar__user">Admin</div>

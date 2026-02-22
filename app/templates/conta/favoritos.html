@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block titulo %}Meus Favoritos — FERRATO{% endblock %}
+
+{% block conteudo %}
+<section class="conta-page">
+    <div class="conta-container">
+        <div class="conta-header">
+            <h1 class="conta-title">Meus Favoritos</h1>
+        </div>
+
+        {% if favoritos %}
+        <div class="produtos-grid">
+            {% for fav in favoritos %}
+            {% set produto = fav.product %}
+            <div class="produto-card">
+                <a href="{{ url_for('shop.produto', slug=produto.slug) }}" class="produto-card__link">
+                    <div class="produto-card__image">
+                        {% if produto.imagem_principal %}
+                        <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" loading="lazy">
+                        {% endif %}
+                    </div>
+                    <div class="produto-card__info">
+                        <h3 class="produto-card__nome">{{ produto.nome }}</h3>
+                        <div class="produto-card__preco">
+                            {% if produto.em_promocao %}
+                            <span class="produto-card__preco-original">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</span>
+                            <span class="produto-card__preco-atual">R$ {{ "%.2f"|format(produto.preco_promocional)|replace('.', ',') }}</span>
+                            {% else %}
+                            <span class="produto-card__preco-atual">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="conta-empty">
+            <svg viewBox="0 0 24 24" class="conta-empty__icon"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <h2 class="conta-empty__title">Nenhum favorito ainda</h2>
+            <p class="conta-empty__text">Adicione produtos aos favoritos para encontrá-los facilmente depois.</p>
+            <a href="{{ url_for('shop.listagem') }}" class="conta-empty__btn">Explorar Produtos</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

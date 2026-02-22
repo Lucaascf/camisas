@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block titulo %}Esqueci minha senha - FERRATO{% endblock %}
+
+{% block conteudo %}
+<div class="auth-page">
+    <div class="auth-container">
+        <h1 class="auth-page__title">Esqueci minha senha</h1>
+        <p class="auth-page__subtitle">
+            Informe seu email cadastrado e enviaremos um link para redefinir sua senha.
+        </p>
+
+        <form method="POST" class="auth-form" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="auth-form__group">
+                <label for="email" class="auth-form__label">Email</label>
+                {{ form.email(class_="auth-form__input", placeholder="seu@email.com") }}
+                {% if form.email.errors %}
+                    <span class="auth-form__error">{{ form.email.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="auth-form__btn">Enviar link de redefinição</button>
+        </form>
+
+        <div class="auth-footer">
+            <p class="auth-footer__text">
+                Lembrou a senha?
+                <a href="{{ url_for('auth.login') }}" class="auth-footer__link">Voltar ao login</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
