@@ -67,49 +67,6 @@
             <div class="admin-form__col">
                 <h2 class="admin-form__section-title">Configurações</h2>
 
-                <div class="admin-form__group">
-                    {{ form.imagem_url.label(class_="admin-form__label") }}
-                    {{ form.imagem_url(class_="admin-form__input", placeholder="https://exemplo.com/imagem.jpg (compatibilidade)", id="imagem-url-input") }}
-                    {% if form.imagem_url.errors %}
-                        <span class="admin-form__error">{{ form.imagem_url.errors[0] }}</span>
-                    {% endif %}
-                    <div class="admin-form__image-preview" id="image-preview">
-                        {% if produto and produto.imagem_url %}
-                            <img src="{{ produto.imagem_url }}" alt="Preview">
-                        {% endif %}
-                    </div>
-                </div>
-
-
-                {% if produto %}
-                <div class="admin-form__group" style="background: #F0FDF4; padding: 16px; margin-top: 24px; border-left: 4px solid #10B981;">
-                    <h3 class="admin-form__label" style="font-size: 14px; margin-bottom: 12px;">Adicionar Imagens</h3>
-                    <form method="POST" action="{{ url_for('admin.adicionar_imagens', id=produto.id) }}" enctype="multipart/form-data">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="file" name="imagens" multiple accept="image/*" style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #10B981;">
-                        <button type="submit" class="admin-btn admin-btn--primary" style="background: #10B981; width: 100%;">Adicionar Imagens</button>
-                    </form>
-                </div>
-
-                {% if produto.imagens %}
-                <div class="admin-form__group">
-                    <label class="admin-form__label">Imagens Atuais ({{ produto.imagens|length }})</label>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-top: 12px;">
-                        {% for imagem in produto.imagens|sort(attribute='ordem') %}
-                        <div style="position: relative; border: 1px solid #E5E5E5; padding: 8px;">
-                            <img src="{{ url_for('main.servir_imagem', image_id=imagem.id) }}" alt="{{ imagem.filename }}" style="width: 100%; height: 150px; object-fit: cover; display: block;">
-                            <p style="font-size: 11px; margin: 8px 0 4px; color: #8B8B8B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ imagem.filename }}</p>
-                            <p style="font-size: 10px; color: #8B8B8B; margin-bottom: 8px;">Ordem: {{ imagem.ordem }}</p>
-                            <form method="POST" action="{{ url_for('admin.deletar_imagem', image_id=imagem.id) }}" style="margin: 0;" onsubmit="return confirm('Confirma a exclusão desta imagem?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="admin-btn admin-btn--small admin-btn--danger" style="width: 100%; font-size: 10px; padding: 6px;">Remover</button>
-                            </form>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                {% endif %}
 
                 {% if produto %}
                 <div class="admin-form__group" style="background: #FAFAFA; padding: 16px; margin-top: 24px; border-left: 4px solid #C8A35F;">
@@ -140,9 +97,6 @@
                         </div>
                         {% endfor %}
                     </div>
-                    <button type="button" id="salvar-variantes-btn" class="admin-btn admin-btn--primary" style="width: 100%; margin-top: 12px; background: #C8A35F;">
-                        Salvar Tamanhos
-                    </button>
                 </div>
                 {% endif %}
 
@@ -175,25 +129,90 @@
             </button>
         </div>
     </form>
+
+    {# ── Gestão de imagens fora do form principal para evitar forms aninhados ── #}
+    {% if produto %}
+    <div style="border-top: 1px solid #E5E5E5; padding-top: 24px; margin-top: 24px;">
+        <div class="admin-form__grid">
+            <div class="admin-form__col">
+                <div class="admin-form__group" style="background: #F0FDF4; padding: 16px; border-left: 4px solid #10B981;">
+                    <h3 class="admin-form__label" style="font-size: 14px; margin-bottom: 12px;">Adicionar Imagens</h3>
+                    <form method="POST" action="{{ url_for('admin.adicionar_imagens', id=produto.id) }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="file" name="imagens" multiple accept="image/*" style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #10B981;">
+                        <button type="submit" class="admin-btn admin-btn--primary" style="background: #10B981; width: 100%;">Adicionar Imagens</button>
+                    </form>
+                </div>
+            </div>
+            <div class="admin-form__col">
+                <div class="admin-form__group" style="background: #EFF6FF; padding: 16px; border-left: 4px solid #3B82F6;">
+                    <h3 class="admin-form__label" style="font-size: 14px; margin-bottom: 12px;">Imagens por URL</h3>
+                    <form method="POST" action="{{ url_for('admin.adicionar_url_imagens', id=produto.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div id="url-inputs">
+                            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                <input type="url" name="urls" placeholder="https://..."
+                                       class="admin-form__input" style="flex:1;">
+                                <button type="button" onclick="this.parentElement.remove()"
+                                        class="admin-btn admin-btn--danger admin-btn--small">×</button>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:4px;">
+                            <button type="button" onclick="adicionarLinhaUrl()"
+                                    class="admin-btn admin-btn--secondary admin-btn--small">＋ Adicionar linha</button>
+                            <button type="submit" class="admin-btn admin-btn--primary admin-btn--small"
+                                    style="background:#3B82F6;">Salvar URLs</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {% if produto.imagens or produto.imagens_url %}
+        <div class="admin-form__group" style="margin-top: 16px;">
+            <label class="admin-form__label">Galeria ({{ (produto.imagens|length) + (produto.imagens_url|length) }} imagens) — arraste para reordenar<span id="img-ordem-status" style="font-size:12px;color:#8B8B8B;margin-left:8px;"></span></label>
+            <div id="img-grid">
+                {% for imagem in produto.imagens %}
+                <div class="img-card" draggable="true" data-id="{{ imagem.id }}" data-type="upload" data-ordem="{{ imagem.ordem }}">
+                    <div class="img-card__handle">⠿</div>
+                    <img src="{{ url_for('main.servir_imagem', image_id=imagem.id) }}" alt="{{ imagem.filename }}" style="width:100%;height:120px;object-fit:cover;" draggable="false">
+                    <p class="img-card__label">{{ imagem.filename }}</p>
+                    <form method="POST" action="{{ url_for('admin.deletar_imagem', image_id=imagem.id) }}" onsubmit="return confirm('Confirma a exclusão desta imagem?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="admin-btn admin-btn--small admin-btn--danger">Remover</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% for img in produto.imagens_url %}
+                <div class="img-card" draggable="true" data-id="{{ img.id }}" data-type="url" data-ordem="{{ img.ordem }}">
+                    <div class="img-card__handle">⠿</div>
+                    <img src="{{ img.url }}" alt="URL imagem" style="width:100%;height:120px;object-fit:cover;" onerror="this.style.background='#F3F4F6';" draggable="false">
+                    <p class="img-card__label" title="{{ img.url }}">{{ img.url }}</p>
+                    <form method="POST" action="{{ url_for('admin.deletar_imagem_url', image_id=img.id) }}" onsubmit="return confirm('Confirma a exclusão desta URL?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="admin-btn admin-btn--small admin-btn--danger">Remover</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Image preview for URL field
-    const imageInput = document.getElementById('imagem-url-input');
-    const imagePreview = document.getElementById('image-preview');
-
-    if (imageInput && imagePreview) {
-        imageInput.addEventListener('input', (e) => {
-            const url = e.target.value.trim();
-            if (url) {
-                imagePreview.innerHTML = `<img src="${url}" alt="Preview" onerror="this.parentElement.innerHTML='Imagem não encontrada'">`;
-            } else {
-                imagePreview.innerHTML = '';
-            }
-        });
+    // Adicionar linha de URL de imagem
+    function adicionarLinhaUrl() {
+        const container = document.getElementById('url-inputs');
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
+        div.innerHTML = '<input type="url" name="urls" placeholder="https://..." class="admin-form__input" style="flex:1;"><button type="button" onclick="this.parentElement.remove()" class="admin-btn admin-btn--danger admin-btn--small">×</button>';
+        container.appendChild(div);
     }
+
 
     // Auto-generate slug from name
     const nomeInput = document.getElementById('nome');
@@ -221,23 +240,60 @@
 
     if (form && submitBtn) {
         form.addEventListener('submit', function() {
-            console.log('💾 Salvando produto...');
             submitBtn.disabled = true;
             submitText.style.display = 'none';
             submitLoading.style.display = 'inline';
         });
+
+        // Re-enable button when page is restored from browser back/forward cache
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) {
+                submitBtn.disabled = false;
+                submitText.style.display = '';
+                submitLoading.style.display = 'none';
+            }
+        });
     }
 
-    // Gerenciamento de variantes (tamanhos)
+    // Gerenciamento de variantes (tamanhos) — salva automaticamente
     const variantCheckboxes = document.querySelectorAll('.variant-active-checkbox');
-    const variantInputs = document.querySelectorAll('.variant-stock-input');
+    const produtoId = {{ produto.id if produto else 0 }};
 
+    function salvarVariantes() {
+        if (!produtoId) return;
+        const variantes = [];
+        variantCheckboxes.forEach(function(checkbox) {
+            const tamanho = checkbox.dataset.tamanho;
+            const stockInput = document.querySelector('.variant-stock-input[data-tamanho="' + tamanho + '"]');
+            variantes.push({
+                id: checkbox.dataset.variantId || null,
+                tamanho: tamanho,
+                ativo: checkbox.checked,
+                estoque: parseInt(stockInput.value) || 0
+            });
+        });
+        fetch('/admin/produtos/' + produtoId + '/variantes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ variantes: variantes })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.sucesso && data.variantes) {
+                data.variantes.forEach(function(v) {
+                    const cb = document.querySelector('.variant-active-checkbox[data-tamanho="' + v.tamanho + '"]');
+                    if (cb) cb.dataset.variantId = v.id;
+                });
+            }
+        });
+    }
+
+    var variantDebounce;
     variantCheckboxes.forEach(function(checkbox) {
         checkbox.addEventListener('change', function() {
             const tamanho = this.dataset.tamanho;
             const stockInput = document.querySelector('.variant-stock-input[data-tamanho="' + tamanho + '"]');
             const statusSpan = this.parentElement.querySelector('.variant-status');
-
             if (this.checked) {
                 stockInput.disabled = false;
                 statusSpan.textContent = 'Ativo';
@@ -245,72 +301,138 @@
                 stockInput.disabled = true;
                 statusSpan.textContent = 'Inativo';
             }
+            salvarVariantes();
         });
     });
 
-    // Salvar variantes via AJAX
-    const salvarVariantesBtn = document.getElementById('salvar-variantes-btn');
-    if (salvarVariantesBtn) {
-        salvarVariantesBtn.addEventListener('click', function() {
-            const produtoId = {{ produto.id if produto else 0 }};
-            if (!produtoId) return;
+    document.querySelectorAll('.variant-stock-input').forEach(function(input) {
+        input.addEventListener('change', function() {
+            clearTimeout(variantDebounce);
+            variantDebounce = setTimeout(salvarVariantes, 400);
+        });
+    });
+</script>
 
-            const variantes = [];
-            variantCheckboxes.forEach(function(checkbox) {
-                const tamanho = checkbox.dataset.tamanho;
-                const stockInput = document.querySelector('.variant-stock-input[data-tamanho="' + tamanho + '"]');
-                const variantId = checkbox.dataset.variantId;
+<style>
+#img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; }
+.img-card { border: 1px solid #E5E5E5; padding: 8px; cursor: grab; user-select: none; position: relative; }
+.img-card__handle { text-align: center; color: #8B8B8B; font-size: 18px; margin-bottom: 4px; }
+.img-card__label { font-size: 10px; color: #8B8B8B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 4px 0; }
+.img-card__badge { display: none; position: absolute; top: 6px; right: 6px; background: #C8A35F; color: #fff; font-size: 10px; padding: 2px 6px; font-weight: 600; letter-spacing: 0.04em; }
+.img-card--principal .img-card__badge { display: block; }
+</style>
 
-                variantes.push({
-                    id: variantId || null,
-                    tamanho: tamanho,
-                    ativo: checkbox.checked,
-                    estoque: parseInt(stockInput.value) || 0
-                });
-            });
+<script>
+// Drag-and-drop nos cards de imagem
+(function() {
+    var grid = document.getElementById('img-grid');
+    if (!grid) return;
 
-            const btn = this;
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = 'Salvando...';
+    var statusEl = document.getElementById('img-ordem-status');
+    var statusTimer = null;
 
-            fetch('/admin/produtos/' + produtoId + '/variantes', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({ variantes: variantes })
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.sucesso) {
-                    btn.textContent = '✓ Salvo!';
-                    // Atualizar os IDs das variantes criadas
-                    if (data.variantes) {
-                        data.variantes.forEach(function(v) {
-                            const checkbox = document.querySelector('.variant-active-checkbox[data-tamanho="' + v.tamanho + '"]');
-                            if (checkbox) {
-                                checkbox.dataset.variantId = v.id;
-                            }
-                        });
-                    }
-                    setTimeout(function() {
-                        btn.textContent = originalText;
-                        btn.disabled = false;
-                    }, 2000);
-                } else {
-                    alert('Erro: ' + data.mensagem);
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                }
-            })
-            .catch(function(err) {
-                alert('Erro ao salvar variantes');
-                btn.textContent = originalText;
-                btn.disabled = false;
-            });
+    function setStatus(msg, color, duration) {
+        if (statusEl) {
+            statusEl.textContent = msg;
+            statusEl.style.color = color || '#8B8B8B';
+        }
+        clearTimeout(statusTimer);
+        if (duration) {
+            statusTimer = setTimeout(function() {
+                if (statusEl) { statusEl.textContent = ''; }
+            }, duration);
+        }
+    }
+
+    function atualizarPrincipal() {
+        var cards = Array.from(grid.querySelectorAll('.img-card'));
+        cards.forEach(function(c, i) {
+            if (i === 0) {
+                c.classList.add('img-card--principal');
+            } else {
+                c.classList.remove('img-card--principal');
+            }
         });
     }
+
+    // Ordenar cards por data-ordem ao carregar e adicionar badge
+    var initial = Array.from(grid.querySelectorAll('.img-card'));
+    initial.sort(function(a, b) {
+        return parseInt(a.dataset.ordem) - parseInt(b.dataset.ordem);
+    });
+    initial.forEach(function(c) {
+        // Inserir badge se ainda não existir
+        if (!c.querySelector('.img-card__badge')) {
+            var badge = document.createElement('span');
+            badge.className = 'img-card__badge';
+            badge.textContent = 'Principal';
+            c.insertBefore(badge, c.firstChild);
+        }
+        grid.appendChild(c);
+    });
+    atualizarPrincipal();
+
+    var dragged = null;
+
+    grid.addEventListener('dragstart', function(e) {
+        dragged = e.target.closest('.img-card');
+        if (dragged) dragged.style.opacity = '0.4';
+    });
+
+    grid.addEventListener('dragend', function(e) {
+        if (dragged) dragged.style.opacity = '1';
+        dragged = null;
+    });
+
+    grid.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        var over = e.target.closest('.img-card');
+        if (over && over !== dragged) {
+            var allCards = Array.from(grid.children);
+            var iDragged = allCards.indexOf(dragged);
+            var iOver = allCards.indexOf(over);
+            if (iDragged < iOver) {
+                grid.insertBefore(dragged, over.nextSibling);
+            } else {
+                grid.insertBefore(dragged, over);
+            }
+            atualizarPrincipal();
+        }
+    });
+
+    grid.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var imgProdutoId = {{ produto.id if produto else 0 }};
+        if (!imgProdutoId) return;
+
+        var allCards = Array.from(grid.querySelectorAll('.img-card'));
+        var payload = allCards.map(function(c, i) {
+            return { type: c.dataset.type, id: parseInt(c.dataset.id), ordem: i };
+        });
+
+        setStatus('Salvando…', '#8B8B8B', 0);
+
+        fetch('/admin/produtos/' + imgProdutoId + '/reordenar-imagens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ imagens: payload })
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function() {
+            // Atualizar data-ordem no DOM para refletir nova ordem salva
+            Array.from(grid.querySelectorAll('.img-card')).forEach(function(c, i) {
+                c.dataset.ordem = i;
+            });
+            atualizarPrincipal();
+            setStatus('Salvo ✓', '#16a34a', 2000);
+        })
+        .catch(function() {
+            setStatus('Erro ao salvar', '#dc2626', 4000);
+        });
+    });
+})();
 </script>
 {% endblock %}

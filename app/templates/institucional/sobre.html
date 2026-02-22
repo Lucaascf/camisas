@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block titulo %}Sobre Nós — FERRATO{% endblock %}
+
+{% block conteudo %}
+<style>
+  .institucional-container { max-width: 720px; }
+  .institucional-body h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: #1A1A1A;
+    margin: 2rem 0 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .institucional-body p,
+  .institucional-body li {
+    font-family: 'Inter', sans-serif;
+    line-height: 1.8;
+    color: #4B5563;
+    margin-bottom: 0.75rem;
+  }
+  .institucional-body ul { padding-left: 1.5rem; }
+</style>
+
+<section class="conta-page">
+  <div class="conta-container institucional-container">
+    <div class="conta-header">
+      <h1 class="conta-title">Sobre Nós</h1>
+    </div>
+    <div class="institucional-body">
+
+      <h2>Nossa História</h2>
+      <p>A FERRATO nasceu da convicção de que uma camisa bem feita transforma não apenas o visual, mas a postura de quem a veste. Fundada por artesãos apaixonados pela tradição da alfaiataria italiana, a marca traz ao Brasil o rigor técnico europeu aliado ao estilo contemporâneo.</p>
+      <p>Cada peça é desenvolvida com atenção obsessiva aos detalhes: da escolha dos tecidos à construção das costuras, do corte preciso ao acabamento impecável. Acreditamos que o luxo verdadeiro está na qualidade que perdura, não na ostentação passageira.</p>
+
+      <h2>Nossos Materiais</h2>
+      <p>Trabalhamos exclusivamente com tecidos selecionados de fornecedores certificados — algodão egípcio de longa fibra, linho italiano e misturas premium que garantem toque suave, respirabilidade e durabilidade excepcional.</p>
+      <p>Cada lote de tecido passa por controle de qualidade antes de chegar ao ateliê. Nenhuma camisa FERRATO é produzida com materiais abaixo do nosso padrão, sem exceção.</p>
+
+      <h2>Nossos Valores</h2>
+      <ul>
+        <li><strong>Qualidade sem concessões</strong> — usamos apenas o que há de melhor, porque você merece.</li>
+        <li><strong>Autenticidade</strong> — design atemporal, sem modismos descartáveis.</li>
+        <li><strong>Responsabilidade</strong> — produção consciente, com respeito ao meio ambiente e às pessoas envolvidas na cadeia.</li>
+        <li><strong>Relacionamento duradouro</strong> — queremos ser sua marca de confiança por décadas, não apenas por uma temporada.</li>
+      </ul>
+
+      <h2>Compromisso com o Cliente</h2>
+      <p>Sabemos que comprar online exige confiança. Por isso oferecemos descrições detalhadas, guia de medidas preciso e uma política de trocas transparente. Se algo não estiver perfeito, estamos aqui para resolver.</p>
+      <p>Para qualquer dúvida, nossa equipe está disponível pelo e-mail <strong>useferrato@gmail.com</strong> ou pelo WhatsApp.</p>
+
+    </div>
+  </div>
+</section>
+{% endblock %}

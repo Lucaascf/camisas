@@ -88,6 +88,26 @@ def meu_perfil():
     return render_template('conta/perfil.html', form=form)
 
 
+@main_bp.route('/sobre')
+def sobre():
+    return render_template('institucional/sobre.html')
+
+
+@main_bp.route('/trocas-e-devolucoes')
+def trocas_devolucoes():
+    return render_template('institucional/trocas.html')
+
+
+@main_bp.route('/privacidade')
+def privacidade():
+    return render_template('institucional/privacidade.html')
+
+
+@main_bp.route('/termos')
+def termos():
+    return render_template('institucional/termos.html')
+
+
 @main_bp.route('/produto/imagem/<int:image_id>')
 def servir_imagem(image_id):
     """Serve uma imagem de produto armazenada no banco de dados."""

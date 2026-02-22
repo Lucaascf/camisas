@@ -1,0 +1,17 @@
+FERRATO — Cupom Exclusivo para Você
+====================================
+
+Olá, {{ nome }}!
+
+Preparamos um cupom de desconto especial para a sua próxima compra na FERRATO.
+
+Use o código abaixo no checkout:
+
+  {{ codigo }}  —  {{ desconto_percentual|int }}% de desconto
+
+{% if validade %}Válido até {{ validade.strftime('%d/%m/%Y') }}.{% else %}Sem data de validade.{% endif %}
+
+Aproveite nossa coleção exclusiva de camisas de luxo!
+
+—
+FERRATO

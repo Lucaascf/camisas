@@ -16,32 +16,43 @@
 
     <section class="product-detail">
         <div class="product-detail__gallery">
+
+            {# Thumbnails — ficam à esquerda no desktop, embaixo no mobile #}
+            {% if produto.todas_imagens|length > 1 %}
+            <div class="product-detail__thumbnails">
+                {% for imagem in produto.todas_imagens %}
+                <img src="{{ imagem.src }}"
+                     alt="{{ produto.nome }}"
+                     class="product-detail__thumbnail {% if loop.first %}active{% endif %}"
+                     onclick="irParaImagem({{ loop.index0 }}, this)">
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Imagem principal com setas #}
             <div class="product-detail__image">
                 {% if produto.imagem_principal %}
-                    <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" class="product-detail__image-img" id="imagem-principal">
+                    <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}"
+                         class="product-detail__image-img" id="imagem-principal">
                 {% else %}
                     <div class="product-card__placeholder">
                         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                         <span>Foto</span>
                     </div>
                 {% endif %}
+
                 {% if produto.novo %}
                 <span class="product-card__badge product-card__badge--new">Novo</span>
                 {% elif produto.em_promocao %}
                 <span class="product-card__badge product-card__badge--sale">-{{ produto.percentual_desconto }}%</span>
                 {% endif %}
+
+                {% if produto.todas_imagens|length > 1 %}
+                <button class="gallery-arrow gallery-arrow--prev" onclick="imagemAnterior()" aria-label="Imagem anterior">&#8249;</button>
+                <button class="gallery-arrow gallery-arrow--next" onclick="proximaImagem()" aria-label="Próxima imagem">&#8250;</button>
+                {% endif %}
             </div>
 
-            {% if produto.imagens and produto.imagens|length > 1 %}
-            <div class="product-detail__thumbnails">
-                {% for imagem in produto.imagens|sort(attribute='ordem') %}
-                <img src="{{ url_for('main.servir_imagem', image_id=imagem.id) }}"
-                     alt="{{ produto.nome }}"
-                     class="product-detail__thumbnail {% if loop.first %}active{% endif %}"
-                     onclick="trocarImagem('{{ url_for('main.servir_imagem', image_id=imagem.id) }}', this)">
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
 
         <div class="product-detail__info">
@@ -111,23 +122,33 @@
 
 {% block scripts %}
 <script>
-// Trocar imagem principal
-function trocarImagem(url, thumbnail) {
-    var imagemPrincipal = document.getElementById('imagem-principal');
-    if (imagemPrincipal) {
-        imagemPrincipal.src = url;
-    }
+// Galeria com setas e thumbnails
+var galeriaUrls = [
+    {% for imagem in produto.todas_imagens %}'{{ imagem.src }}'{% if not loop.last %},{% endif %}{% endfor %}
+];
+var galeriaAtual = 0;
 
-    // Remover active de todos os thumbnails
-    var thumbnails = document.querySelectorAll('.product-detail__thumbnail');
-    thumbnails.forEach(function(t) {
-        t.classList.remove('active');
+function irParaImagem(index, thumbEl) {
+    galeriaAtual = index;
+    var img = document.getElementById('imagem-principal');
+    if (img) img.src = galeriaUrls[index];
+    document.querySelectorAll('.product-detail__thumbnail').forEach(function(t, i) {
+        t.classList.toggle('active', i === index);
     });
+}
 
-    // Adicionar active ao thumbnail clicado
-    if (thumbnail) {
-        thumbnail.classList.add('active');
-    }
+function proximaImagem() {
+    irParaImagem((galeriaAtual + 1) % galeriaUrls.length, null);
+}
+
+function imagemAnterior() {
+    irParaImagem((galeriaAtual - 1 + galeriaUrls.length) % galeriaUrls.length, null);
+}
+
+// compatibilidade com chamadas antigas
+function trocarImagem(url, thumbEl) {
+    var idx = galeriaUrls.indexOf(url);
+    if (idx >= 0) irParaImagem(idx, thumbEl);
 }
 
 // Seleção de tamanho

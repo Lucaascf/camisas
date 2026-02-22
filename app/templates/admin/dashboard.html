@@ -89,6 +89,10 @@
                                 {% if produto.ativo %}Desativar{% else %}Ativar{% endif %}
                             </button>
                         </form>
+                        <form method="POST" action="{{ url_for('admin.deletar_produto', id=produto.id) }}" style="display:inline" onsubmit="return confirm('Deletar permanentemente o produto \"{{ produto.nome }}\"? Esta ação não pode ser desfeita.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="admin-btn admin-btn--small admin-btn--danger">Deletar</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}

@@ -13,7 +13,7 @@ from app.blueprints.cart import cart_bp
 from app.blueprints.cart import mercadopago_service
 from app.blueprints.cart.email_pedido_service import enviar_email_pedido_confirmado
 from app.forms import CheckoutForm
-from app.models import CartItem, Order, OrderItem, Product, ProductVariant
+from app.models import CartItem, Cupom, Order, OrderItem, Product, ProductVariant
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +216,35 @@ def remover(item_id):
     )
 
 
+@cart_bp.route('/aplicar-cupom', methods=['POST'])
+@csrf.exempt
+def aplicar_cupom():
+    """Valida e aplica um cupom de desconto (AJAX)."""
+    dados = request.get_json() or {}
+    codigo = (dados.get('codigo') or '').strip().upper()
+    subtotal = float(dados.get('subtotal', 0))
+
+    cupom = Cupom.query.filter_by(codigo=codigo, ativo=True).first()
+    agora = datetime.now(timezone.utc)
+
+    if not cupom:
+        return jsonify({'valido': False, 'mensagem': 'Cupom inválido.'})
+    if cupom.validade:
+        validade = cupom.validade.replace(tzinfo=timezone.utc) if cupom.validade.tzinfo is None else cupom.validade
+        if validade < agora:
+            return jsonify({'valido': False, 'mensagem': 'Cupom expirado.'})
+    if cupom.usos_maximos and cupom.usos_atuais >= cupom.usos_maximos:
+        return jsonify({'valido': False, 'mensagem': 'Cupom esgotado.'})
+
+    desconto = round(subtotal * cupom.desconto_percentual / 100, 2)
+    return jsonify({
+        'valido': True,
+        'desconto_percentual': cupom.desconto_percentual,
+        'desconto_valor': desconto,
+        'mensagem': f'{cupom.desconto_percentual:.0f}% de desconto aplicado!'
+    })
+
+
 @cart_bp.route('/calcular-frete', methods=['POST'])
 def calcular_frete():
     """Calcula opções de frete via Melhor Envio (AJAX)."""
@@ -252,7 +281,25 @@ def checkout():
         subtotal    = sum(item.product.preco_final * item.quantidade for item in itens)
         frete_valor = float(request.form.get('frete_valor') or 0)
         frete_tipo  = request.form.get('frete_tipo', '')
-        total       = subtotal + frete_valor
+
+        # Revalidar cupom no backend
+        cupom_codigo_form = request.form.get('cupom_codigo', '').strip().upper()
+        desconto_valor = 0.0
+        cupom_aplicado = None
+        if cupom_codigo_form:
+            cupom_obj = Cupom.query.filter_by(codigo=cupom_codigo_form, ativo=True).first()
+            agora = datetime.now(timezone.utc)
+            if cupom_obj:
+                validade_ok = True
+                if cupom_obj.validade:
+                    val = cupom_obj.validade.replace(tzinfo=timezone.utc) if cupom_obj.validade.tzinfo is None else cupom_obj.validade
+                    validade_ok = val >= agora
+                usos_ok = not cupom_obj.usos_maximos or cupom_obj.usos_atuais < cupom_obj.usos_maximos
+                if validade_ok and usos_ok:
+                    desconto_valor = round(subtotal * cupom_obj.desconto_percentual / 100, 2)
+                    cupom_aplicado = cupom_obj
+
+        total = subtotal + frete_valor - desconto_valor
 
         # Verificar estoque antes de criar o pedido
         for item in itens:
@@ -278,6 +325,8 @@ def checkout():
             cep=form.cep.data,
             frete_tipo=frete_tipo,
             frete_valor=frete_valor,
+            cupom_codigo=cupom_aplicado.codigo if cupom_aplicado else None,
+            desconto_valor=desconto_valor,
             status='aguardando_pagamento'
         )
         db.session.add(pedido)
@@ -370,6 +419,13 @@ def confirmacao(order_id):
 
                 pedido.status = 'pago'
                 pedido.mercadopago_payment_id = resultado['payment_id']
+
+                # Incrementar uso do cupom
+                if pedido.cupom_codigo:
+                    cupom_usado = Cupom.query.filter_by(codigo=pedido.cupom_codigo).first()
+                    if cupom_usado:
+                        cupom_usado.usos_atuais += 1
+
                 db.session.commit()
 
                 try:
@@ -422,6 +478,13 @@ def webhook_mercadopago():
 
             pedido.status = 'pago'
             pedido.mercadopago_payment_id = resultado['payment_id']
+
+            # Incrementar uso do cupom
+            if pedido.cupom_codigo:
+                cupom_usado = Cupom.query.filter_by(codigo=pedido.cupom_codigo).first()
+                if cupom_usado:
+                    cupom_usado.usos_atuais += 1
+
             db.session.commit()
 
             try:

@@ -96,12 +96,17 @@ class Product(db.Model):
         return round((1 - self.preco_promocional / self.preco) * 100)
 
     @property
+    def todas_imagens(self):
+        """Retorna todas as imagens (binárias + URL), ordenadas por `ordem`."""
+        todas = list(self.imagens) + list(self.imagens_url)
+        return sorted(todas, key=lambda x: x.ordem)
+
+    @property
     def imagem_principal(self):
         """Retorna a URL da imagem principal do produto."""
-        if self.imagens:
-            # Se há imagens no banco, retorna a URL da primeira (ordenada)
-            primeira = sorted(self.imagens, key=lambda x: x.ordem)[0]
-            return f'/produto/imagem/{primeira.id}'
+        todas = self.todas_imagens
+        if todas:
+            return todas[0].src
         # Fallback para imagem_url (compatibilidade com produtos antigos)
         return self.imagem_url
 
@@ -195,6 +200,10 @@ class Order(db.Model):
     frete_tipo  = db.Column(db.String(60), nullable=True)
     frete_valor = db.Column(db.Float, default=0.0)
 
+    # Cupom de desconto
+    cupom_codigo   = db.Column(db.String(20), nullable=True)
+    desconto_valor = db.Column(db.Float, default=0.0)
+
     # Logística
     codigo_rastreio = db.Column(db.String(100), nullable=True)
     codigo_cliente = db.Column(db.String(15), unique=True, nullable=True)
@@ -262,6 +271,24 @@ class Wishlist(db.Model):
         return f'<Wishlist user={self.user_id} product={self.product_id}>'
 
 
+class Cupom(db.Model):
+    """Cupom de desconto."""
+
+    __tablename__ = 'cupom'
+
+    id                  = db.Column(db.Integer, primary_key=True)
+    codigo              = db.Column(db.String(20), unique=True, nullable=False)
+    desconto_percentual = db.Column(db.Float, nullable=False)   # ex: 15.0 = 15%
+    ativo               = db.Column(db.Boolean, default=True)
+    validade            = db.Column(db.DateTime, nullable=True)  # None = sem prazo
+    usos_maximos        = db.Column(db.Integer, nullable=True)   # None = ilimitado
+    usos_atuais         = db.Column(db.Integer, default=0)
+    criado_em           = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f'<Cupom {self.codigo} {self.desconto_percentual}%>'
+
+
 class ProductImage(db.Model):
     """Imagem de produto armazenada no banco de dados."""
 
@@ -275,5 +302,30 @@ class ProductImage(db.Model):
 
     product = db.relationship('Product', backref='imagens', lazy=True)
 
+    @property
+    def src(self):
+        return f'/produto/imagem/{self.id}'
+
     def __repr__(self):
         return f'<ProductImage {self.filename} for product {self.product_id}>'
+
+
+class ProductImageURL(db.Model):
+    """Imagem de produto via URL externa."""
+
+    __tablename__ = 'product_image_url'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    ordem = db.Column(db.Integer, default=0)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    produto = db.relationship('Product', backref='imagens_url', lazy=True)
+
+    @property
+    def src(self):
+        return self.url
+
+    def __repr__(self):
+        return f'<ProductImageURL {self.url[:50]} for product {self.product_id}>'

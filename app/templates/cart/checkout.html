@@ -173,6 +173,22 @@
                     <span id="frete-resumo-valor">R$ 0,00</span>
                 </div>
 
+                <!-- Cupom de desconto -->
+                <div class="checkout-coupon">
+                    <div class="coupon-input-group">
+                        <input type="text" id="cupom-input" placeholder="Código de cupom" class="checkout__input" style="text-transform:uppercase">
+                        <button type="button" id="btn-aplicar-cupom" class="checkout__coupon-btn">Aplicar</button>
+                    </div>
+                    <p id="cupom-msg" class="coupon-msg" style="display:none"></p>
+                </div>
+                <input type="hidden" name="cupom_codigo" id="cupom-codigo-hidden">
+                <input type="hidden" name="desconto_valor" id="desconto-valor-hidden" value="0">
+
+                <div id="linha-desconto" class="checkout__summary-frete checkout__summary-desconto" style="display:none">
+                    <span>Desconto (<span id="pct-desconto"></span>%)</span>
+                    <span id="valor-desconto" class="coupon-discount-value">−R$ 0,00</span>
+                </div>
+
                 <div class="checkout__summary-total">
                     <span>Total</span>
                     <span id="total-display">R$ {{ "%.2f"|format(total)|replace('.', ',') }}</span>
@@ -187,6 +203,73 @@
 <script>
 (function() {
     const SUBTOTAL = {{ total }};
+    let freteAtual = 0;
+    let descontoAtual = 0;
+    let pctDescontoAtual = 0;
+
+    function atualizarTotal() {
+        const total = SUBTOTAL + freteAtual - descontoAtual;
+        document.getElementById('total-display').textContent =
+            'R$ ' + total.toFixed(2).replace('.', ',');
+    }
+
+    // ── Cupom ─────────────────────────────────────────────
+    const btnAplicar = document.getElementById('btn-aplicar-cupom');
+    if (btnAplicar) {
+        btnAplicar.addEventListener('click', function() {
+            const codigo = document.getElementById('cupom-input').value.trim().toUpperCase();
+            const msgEl = document.getElementById('cupom-msg');
+            if (!codigo) {
+                msgEl.textContent = 'Digite um código de cupom.';
+                msgEl.className = 'coupon-msg coupon-msg--error';
+                msgEl.style.display = 'block';
+                return;
+            }
+            const csrf = document.querySelector('meta[name="csrf-token"]') &&
+                         document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            btnAplicar.disabled = true;
+            fetch('/cart/aplicar-cupom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrf || ''
+                },
+                body: JSON.stringify({codigo: codigo, subtotal: SUBTOTAL})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                btnAplicar.disabled = false;
+                msgEl.style.display = 'block';
+                if (data.valido) {
+                    descontoAtual = data.desconto_valor;
+                    pctDescontoAtual = data.desconto_percentual;
+                    document.getElementById('cupom-codigo-hidden').value = codigo;
+                    document.getElementById('desconto-valor-hidden').value = descontoAtual;
+                    document.getElementById('pct-desconto').textContent = data.desconto_percentual;
+                    document.getElementById('valor-desconto').textContent =
+                        '−R$ ' + descontoAtual.toFixed(2).replace('.', ',');
+                    document.getElementById('linha-desconto').style.display = 'flex';
+                    msgEl.textContent = data.mensagem;
+                    msgEl.className = 'coupon-msg coupon-msg--success';
+                } else {
+                    // Limpar desconto se inválido
+                    descontoAtual = 0;
+                    document.getElementById('cupom-codigo-hidden').value = '';
+                    document.getElementById('desconto-valor-hidden').value = '0';
+                    document.getElementById('linha-desconto').style.display = 'none';
+                    msgEl.textContent = data.mensagem;
+                    msgEl.className = 'coupon-msg coupon-msg--error';
+                }
+                atualizarTotal();
+            })
+            .catch(function() {
+                btnAplicar.disabled = false;
+                msgEl.textContent = 'Erro ao validar cupom.';
+                msgEl.className = 'coupon-msg coupon-msg--error';
+                msgEl.style.display = 'block';
+            });
+        });
+    }
 
     // ── Frete ─────────────────────────────────────────────
     function calcularFrete(cep) {
@@ -249,15 +332,14 @@
     }
 
     function selecionarFrete(preco, nome) {
+        freteAtual = preco;
         document.getElementById('frete_tipo').value  = nome;
         document.getElementById('frete_valor').value = preco;
-        const total = SUBTOTAL + preco;
-        document.getElementById('total-display').textContent =
-            'R$ ' + total.toFixed(2).replace('.', ',');
         document.getElementById('frete-resumo').style.display = 'flex';
         document.getElementById('frete-resumo-label').textContent = nome;
         document.getElementById('frete-resumo-valor').textContent =
             'R$ ' + preco.toFixed(2).replace('.', ',');
+        atualizarTotal();
     }
 
     // ── Máscara de CEP ────────────────────────────────────

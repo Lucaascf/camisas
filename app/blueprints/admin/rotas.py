@@ -9,7 +9,7 @@ from functools import wraps
 from app import db
 from app.blueprints.admin import admin_bp
 from app.forms import ProductForm, CategoryForm
-from app.models import Product, Category, ProductImage, ProductVariant, Order, User
+from app.models import Cupom, Product, Category, ProductImage, ProductImageURL, ProductVariant, Order, User
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +283,32 @@ def toggle_ativo(id):
     return redirect(url_for('admin.dashboard'))
 
 
+@admin_bp.route('/produtos/<int:id>/deletar', methods=['POST'])
+def deletar_produto(id):
+    """Deletar produto permanentemente."""
+    from app.models import CartItem, OrderItem, Wishlist
+    produto = Product.query.get_or_404(id)
+
+    if OrderItem.query.filter_by(product_id=id).first():
+        flash(
+            f'O produto "{produto.nome}" está associado a pedidos existentes e não pode ser deletado. '
+            'Use "Desativar" para ocultá-lo do site.',
+            'error'
+        )
+        return redirect(url_for('admin.dashboard'))
+
+    nome = produto.nome
+    CartItem.query.filter_by(product_id=id).delete()
+    Wishlist.query.filter_by(product_id=id).delete()
+    ProductVariant.query.filter_by(product_id=id).delete()
+    ProductImage.query.filter_by(product_id=id).delete()
+    db.session.delete(produto)
+    db.session.commit()
+
+    flash(f'Produto "{nome}" deletado com sucesso.', 'success')
+    return redirect(url_for('admin.dashboard'))
+
+
 @admin_bp.route('/produtos/imagem/<int:image_id>/deletar', methods=['POST'])
 def deletar_imagem(image_id):
     """Deletar uma imagem de produto."""
@@ -330,6 +356,82 @@ def adicionar_imagens(id):
         flash(f'Erro ao salvar imagens: {str(e)}', 'error')
 
     return redirect(url_for('admin.editar_produto', id=id))
+
+
+@admin_bp.route('/produtos/<int:id>/adicionar-url-imagens', methods=['POST'])
+def adicionar_url_imagens(id):
+    """Adicionar imagens por URL a um produto existente."""
+    produto = Product.query.get_or_404(id)
+    urls = request.form.getlist('urls')
+
+    max_ordem = max(
+        [img.ordem for img in produto.imagens] + [img.ordem for img in produto.imagens_url],
+        default=-1
+    )
+    contador = 0
+
+    for idx, url in enumerate(urls):
+        url = url.strip()
+        if url:
+            imagem = ProductImageURL(
+                product_id=produto.id,
+                url=url,
+                ordem=max_ordem + idx + 1
+            )
+            db.session.add(imagem)
+            contador += 1
+
+    try:
+        db.session.commit()
+        if contador:
+            flash(f'{contador} URL(s) de imagem adicionada(s) com sucesso!', 'success')
+        else:
+            flash('Nenhuma URL válida foi informada.', 'warning')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao salvar URLs: {str(e)}', 'error')
+
+    return redirect(url_for('admin.editar_produto', id=id))
+
+
+@admin_bp.route('/produtos/<int:id>/reordenar-imagens', methods=['POST'])
+@admin_required
+def reordenar_imagens(id):
+    """Reordenar imagens de um produto (upload + URL)."""
+    produto = Product.query.get_or_404(id)
+    dados = request.get_json()
+    if not dados or 'imagens' not in dados:
+        return jsonify(sucesso=False, mensagem='Dados inválidos'), 400
+
+    try:
+        for item in dados['imagens']:
+            if item['type'] == 'upload':
+                img = ProductImage.query.get(item['id'])
+                if img and img.product_id == produto.id:
+                    img.ordem = item['ordem']
+            elif item['type'] == 'url':
+                img = ProductImageURL.query.get(item['id'])
+                if img and img.product_id == produto.id:
+                    img.ordem = item['ordem']
+        db.session.commit()
+        return jsonify(sucesso=True)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(sucesso=False, mensagem=str(e)), 500
+
+
+@admin_bp.route('/imagem-url/<int:image_id>/deletar', methods=['POST'])
+def deletar_imagem_url(image_id):
+    """Deletar uma imagem de produto por URL."""
+    imagem = ProductImageURL.query.get_or_404(image_id)
+    produto_id = imagem.product_id
+    produto_nome = imagem.produto.nome
+
+    db.session.delete(imagem)
+    db.session.commit()
+
+    flash(f'URL de imagem removida de "{produto_nome}" com sucesso!', 'success')
+    return redirect(url_for('admin.editar_produto', id=produto_id))
 
 
 @admin_bp.route('/produtos/<int:id>/variantes', methods=['POST'])
@@ -488,6 +590,120 @@ def deletar_categoria(id):
     db.session.commit()
     flash(f'Categoria "{nome}" deletada com sucesso!', 'success')
     return redirect(url_for('admin.categorias'))
+
+
+# ==================== USUÁRIOS ====================
+
+# ==================== CUPONS ====================
+
+@admin_bp.route('/cupons')
+def cupons():
+    """Listar e gerenciar cupons de desconto."""
+    cupons_lista = Cupom.query.order_by(Cupom.criado_em.desc()).all()
+    total_usuarios = User.query.count()
+    return render_template('admin/cupons.html', cupons=cupons_lista, total_usuarios=total_usuarios)
+
+
+@admin_bp.route('/cupons/novo', methods=['POST'])
+def novo_cupom():
+    """Criar novo cupom."""
+    import secrets as _secrets
+    from datetime import datetime as _dt
+
+    desconto = request.form.get('desconto_percentual', '').strip()
+    codigo = request.form.get('codigo', '').strip().upper()
+    validade_str = request.form.get('validade', '').strip()
+    usos_maximos_str = request.form.get('usos_maximos', '').strip()
+
+    # Validar desconto
+    try:
+        desconto_float = float(desconto)
+        if not (1 <= desconto_float <= 90):
+            raise ValueError
+    except (ValueError, TypeError):
+        flash('Percentual de desconto inválido (deve ser entre 1 e 90).', 'error')
+        return redirect(url_for('admin.cupons'))
+
+    # Gerar código automático se vazio
+    if not codigo:
+        codigo = 'FERRATO' + _secrets.token_hex(3).upper()
+
+    # Verificar duplicado
+    if Cupom.query.filter_by(codigo=codigo).first():
+        flash(f'Já existe um cupom com o código "{codigo}".', 'error')
+        return redirect(url_for('admin.cupons'))
+
+    # Validade
+    validade = None
+    if validade_str:
+        try:
+            validade = _dt.strptime(validade_str, '%Y-%m-%d')
+        except ValueError:
+            flash('Data de validade inválida.', 'error')
+            return redirect(url_for('admin.cupons'))
+
+    # Usos máximos
+    usos_maximos = None
+    if usos_maximos_str:
+        try:
+            usos_maximos = int(usos_maximos_str)
+            if usos_maximos < 1:
+                raise ValueError
+        except ValueError:
+            flash('Usos máximos inválido.', 'error')
+            return redirect(url_for('admin.cupons'))
+
+    cupom = Cupom(
+        codigo=codigo,
+        desconto_percentual=desconto_float,
+        validade=validade,
+        usos_maximos=usos_maximos,
+    )
+    db.session.add(cupom)
+    db.session.commit()
+
+    flash(f'Cupom "{codigo}" criado com {desconto_float:.0f}% de desconto!', 'success')
+    return redirect(url_for('admin.cupons'))
+
+
+@admin_bp.route('/cupons/<int:id>/toggle', methods=['POST'])
+def toggle_cupom(id):
+    """Ativar/desativar cupom."""
+    cupom = Cupom.query.get_or_404(id)
+    cupom.ativo = not cupom.ativo
+    db.session.commit()
+    return jsonify({'ativo': cupom.ativo})
+
+
+@admin_bp.route('/cupons/<int:id>/deletar', methods=['POST'])
+def deletar_cupom(id):
+    """Deletar cupom (ou desativar se houver pedidos usando-o)."""
+    cupom = Cupom.query.get_or_404(id)
+    pedidos_com_cupom = Order.query.filter_by(cupom_codigo=cupom.codigo).first()
+    if pedidos_com_cupom:
+        cupom.ativo = False
+        db.session.commit()
+        flash(f'Cupom "{cupom.codigo}" não pode ser deletado pois há pedidos associados. Cupom desativado.', 'warning')
+    else:
+        codigo = cupom.codigo
+        db.session.delete(cupom)
+        db.session.commit()
+        flash(f'Cupom "{codigo}" deletado com sucesso.', 'success')
+    return redirect(url_for('admin.cupons'))
+
+
+@admin_bp.route('/cupons/<int:id>/enviar-email', methods=['POST'])
+def enviar_email_cupom(id):
+    """Enviar cupom por email para todos os usuários cadastrados."""
+    cupom = Cupom.query.get_or_404(id)
+    usuarios = User.query.all()
+    if not usuarios:
+        return jsonify({'enviado': 0, 'mensagem': 'Nenhum usuário cadastrado.'})
+
+    from app.blueprints.auth.email_service import enviar_cupom_usuarios
+    enviar_cupom_usuarios(cupom, usuarios)
+
+    return jsonify({'enviado': len(usuarios), 'mensagem': f'Email enviado para {len(usuarios)} usuário(s).'})
 
 
 # ==================== USUÁRIOS ====================

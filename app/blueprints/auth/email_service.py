@@ -182,6 +182,65 @@ def enviar_email_reset_senha(email, nome, token):
     return True
 
 
+def enviar_cupom_usuarios(cupom, usuarios):
+    """
+    Envia email com cupom de desconto para uma lista de usuários.
+
+    Em modo desenvolvimento (TESTING=True), apenas loga no console.
+
+    Args:
+        cupom: instância de Cupom
+        usuarios: lista de User
+    """
+    import threading
+
+    if current_app.config.get('TESTING'):
+        for u in usuarios:
+            current_app.logger.warning(
+                f'[MODO DEV] Cupom {cupom.codigo} ({cupom.desconto_percentual:.0f}%) → {u.email}'
+            )
+        return
+
+    app = current_app._get_current_object()
+    cupom_codigo = cupom.codigo
+    cupom_pct = cupom.desconto_percentual
+    cupom_validade = cupom.validade
+
+    destinatarios = [(u.nome, u.email) for u in usuarios]
+
+    def _send():
+        with app.app_context():
+            for nome, email in destinatarios:
+                try:
+                    html_body = render_template(
+                        'auth/email_cupom.html',
+                        nome=nome,
+                        codigo=cupom_codigo,
+                        desconto_percentual=cupom_pct,
+                        validade=cupom_validade,
+                    )
+                    txt_body = render_template(
+                        'auth/email_cupom.txt',
+                        nome=nome,
+                        codigo=cupom_codigo,
+                        desconto_percentual=cupom_pct,
+                        validade=cupom_validade,
+                    )
+                    msg = Message(
+                        subject=f'Seu cupom exclusivo FERRATO: {cupom_codigo}',
+                        recipients=[email],
+                        sender=app.config.get('MAIL_DEFAULT_SENDER'),
+                    )
+                    msg.html = html_body
+                    msg.body = txt_body
+                    mail.send(msg)
+                    app.logger.info(f'Email de cupom enviado para {email}')
+                except Exception as e:
+                    app.logger.error(f'Erro ao enviar cupom para {email}: {e}')
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
 def verificar_codigo(email, codigo):
     """
     Verifica se o código informado é válido para o email.

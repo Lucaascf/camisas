@@ -140,7 +140,7 @@ def seed_db():
     # --- Admin ---
     admin = User(
         nome='Administrador',
-        email='admin@ferrato.com.br',
+        email='useferrato@gmail.com',
         admin=True,
     )
     admin.set_senha('admin123')
@@ -150,7 +150,7 @@ def seed_db():
     print('Seed concluído com sucesso!')
     print(f'  - {len(categorias)} categorias')
     print(f'  - {len(produtos)} produtos')
-    print(f'  - 1 usuário admin (admin@ferrato.com.br / admin123)')
+    print(f'  - 1 usuário admin (useferrato@gmail.com / admin123)')
 
 
 @click.command('seed')

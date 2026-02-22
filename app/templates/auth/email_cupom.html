@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Inter', Arial, sans-serif; background: #FAFAFA; margin: 0; padding: 0; }
+        .container { max-width: 520px; margin: 40px auto; background: #fff; border: 1px solid #E5E7EB; }
+        .header { background: #1f2937; padding: 32px; text-align: center; }
+        .header__logo { color: #C8A35F; font-family: Georgia, serif; font-size: 28px; letter-spacing: 4px; }
+        .body { padding: 40px 32px; }
+        .body h2 { color: #1A1A1A; font-size: 22px; margin-bottom: 16px; }
+        .body p { color: #4B5563; font-size: 15px; line-height: 1.6; margin-bottom: 16px; }
+        .coupon-box { background: #1f2937; padding: 28px; text-align: center; margin: 28px 0; }
+        .coupon-box__label { color: #9CA3AF; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+        .coupon-box__code { color: #C8A35F; font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; letter-spacing: 6px; }
+        .coupon-box__pct { color: #fff; font-size: 16px; margin-top: 10px; }
+        .btn { display: inline-block; background: #1f2937; color: #fff !important; padding: 14px 32px;
+               text-decoration: none; font-size: 15px; font-weight: 600; margin: 16px 0; }
+        .footer { padding: 24px 32px; border-top: 1px solid #E5E7EB; }
+        .footer p { color: #9CA3AF; font-size: 13px; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header__logo">FERRATO</div>
+        </div>
+        <div class="body">
+            <h2>Um presente exclusivo para você</h2>
+            <p>Olá, <strong>{{ nome }}</strong>!</p>
+            <p>Preparamos um cupom de desconto especial para a sua próxima compra na FERRATO. Use o código abaixo no checkout:</p>
+
+            <div class="coupon-box">
+                <div class="coupon-box__label">Seu cupom exclusivo</div>
+                <div class="coupon-box__code">{{ codigo }}</div>
+                <div class="coupon-box__pct">{{ desconto_percentual|int }}% de desconto</div>
+            </div>
+
+            {% if validade %}
+            <p>Este cupom é válido até <strong>{{ validade.strftime('%d/%m/%Y') }}</strong>.</p>
+            {% else %}
+            <p>Este cupom não possui data de validade.</p>
+            {% endif %}
+
+            <p>Aproveite nossa coleção exclusiva de camisas de luxo e use seu desconto agora:</p>
+            <a href="#" class="btn">Ver Coleção</a>
+        </div>
+        <div class="footer">
+            <p>Você está recebendo este email porque é um cliente FERRATO. Para não receber mais ofertas, entre em contato conosco.</p>
+        </div>
+    </div>
+</body>
+</html>

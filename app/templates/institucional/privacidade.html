@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block titulo %}Política de Privacidade — FERRATO{% endblock %}
+
+{% block conteudo %}
+<style>
+  .institucional-container { max-width: 720px; }
+  .institucional-body h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: #1A1A1A;
+    margin: 2rem 0 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .institucional-body p,
+  .institucional-body li {
+    font-family: 'Inter', sans-serif;
+    line-height: 1.8;
+    color: #4B5563;
+    margin-bottom: 0.75rem;
+  }
+  .institucional-body ul { padding-left: 1.5rem; }
+</style>
+
+<section class="conta-page">
+  <div class="conta-container institucional-container">
+    <div class="conta-header">
+      <h1 class="conta-title">Política de Privacidade</h1>
+    </div>
+    <div class="institucional-body">
+
+      <p>A FERRATO respeita e protege sua privacidade. Esta política descreve como coletamos, usamos e protegemos seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei 13.709/2018).</p>
+
+      <h2>Dados Coletados</h2>
+      <p>Coletamos os seguintes dados para operar nossos serviços:</p>
+      <ul>
+        <li><strong>Cadastro:</strong> nome completo, endereço de e-mail e senha (armazenada criptografada);</li>
+        <li><strong>Pedidos:</strong> endereço de entrega, CPF (quando necessário para emissão de nota fiscal) e dados de pagamento (processados pelo Mercado Pago — não armazenamos dados de cartão);</li>
+        <li><strong>Navegação:</strong> informações técnicas como endereço IP, tipo de navegador e páginas visitadas, coletadas automaticamente por cookies de sessão.</li>
+      </ul>
+
+      <h2>Finalidade do Uso</h2>
+      <p>Seus dados são utilizados exclusivamente para:</p>
+      <ul>
+        <li>Processar e entregar seus pedidos;</li>
+        <li>Enviar confirmações de compra e atualizações de entrega;</li>
+        <li>Gerenciar sua conta e preferências;</li>
+        <li>Cumprir obrigações legais e fiscais;</li>
+        <li>Melhorar nossos serviços (dados anonimizados).</li>
+      </ul>
+      <p>Não vendemos, alugamos ou compartilhamos seus dados pessoais com terceiros para fins de marketing sem seu consentimento.</p>
+
+      <h2>Armazenamento e Segurança</h2>
+      <p>Seus dados são armazenados em servidores seguros. Senhas são criptografadas com hash seguro (bcrypt) e nunca são armazenadas em texto puro. Adotamos medidas técnicas e organizacionais para proteger suas informações contra acesso não autorizado, perda ou destruição.</p>
+
+      <h2>Cookies</h2>
+      <p>Utilizamos cookies de sessão para manter seu carrinho de compras e sua autenticação ativa. Esses cookies são temporários e essenciais para o funcionamento do site. Não utilizamos cookies de rastreamento de terceiros.</p>
+
+      <h2>Seus Direitos (LGPD)</h2>
+      <p>Como titular dos dados, você tem direito a:</p>
+      <ul>
+        <li>Confirmar se tratamos seus dados;</li>
+        <li>Acessar os dados que possuímos sobre você;</li>
+        <li>Corrigir dados incompletos, inexatos ou desatualizados;</li>
+        <li>Solicitar a anonimização, bloqueio ou eliminação de dados desnecessários;</li>
+        <li>Revogar o consentimento a qualquer momento;</li>
+        <li>Portabilidade dos seus dados.</li>
+      </ul>
+
+      <h2>Como Exercer Seus Direitos</h2>
+      <p>Para exercer qualquer direito relacionado aos seus dados pessoais, entre em contato pelo e-mail <strong>useferrato@gmail.com</strong>. Responderemos em até 15 dias úteis.</p>
+
+      <h2>Alterações nesta Política</h2>
+      <p>Podemos atualizar esta política periodicamente. Quando isso ocorrer, publicaremos a versão atualizada nesta página com a data de revisão. Recomendamos revisitar esta política ocasionalmente.</p>
+      <p><em>Última atualização: fevereiro de 2026.</em></p>
+
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -45,7 +45,7 @@ def calcular_frete(cep_destino: str, qtd_itens: int = 1) -> list:
         'Authorization': f'Bearer {TOKEN}',
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'FERRATO E-commerce (contato@ferrato.com.br)',
+        'User-Agent': 'FERRATO E-commerce (useferrato@gmail.com)',
     }
 
     logger.info("FRETE: chamando %s/api/v2/me/shipment/calculate — sandbox=%s, TOKEN_ok=%s",

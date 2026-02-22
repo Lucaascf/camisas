@@ -1,0 +1,206 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}Cupons de Desconto{% endblock %}
+
+{% block conteudo %}
+<div class="admin-dashboard">
+
+    <!-- Header -->
+    <div class="admin-dashboard__header">
+        <button id="btn-toggle-form" class="admin-btn admin-btn--primary" onclick="toggleForm()">+ Novo Cupom</button>
+    </div>
+
+    <!-- Formulário de criação (colapsável) -->
+    <div id="form-novo-cupom" class="admin-card" style="display:none; margin-bottom:1.5rem;">
+        <h3 style="margin:0 0 1.25rem; font-size:1rem; font-weight:600;">Novo Cupom</h3>
+        <form method="POST" action="{{ url_for('admin.novo_cupom') }}" class="admin-cupom-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="admin-cupom-form__row">
+                <div class="admin-cupom-form__field">
+                    <label class="admin-form-label">Desconto (%)</label>
+                    <input type="number" name="desconto_percentual" min="1" max="90" step="0.5"
+                           placeholder="ex: 15" class="admin-form-input" required>
+                </div>
+                <div class="admin-cupom-form__field">
+                    <label class="admin-form-label">Código</label>
+                    <input type="text" name="codigo" maxlength="20" placeholder="Deixe vazio para gerar automaticamente"
+                           class="admin-form-input" style="text-transform:uppercase">
+                </div>
+                <div class="admin-cupom-form__field">
+                    <label class="admin-form-label">Validade</label>
+                    <input type="date" name="validade" class="admin-form-input">
+                    <small style="color:var(--admin-text-muted)">Deixe vazio = sem prazo</small>
+                </div>
+                <div class="admin-cupom-form__field">
+                    <label class="admin-form-label">Usos máximos</label>
+                    <input type="number" name="usos_maximos" min="1" placeholder="Ilimitado"
+                           class="admin-form-input">
+                    <small style="color:var(--admin-text-muted)">Deixe vazio = ilimitado</small>
+                </div>
+            </div>
+            <div style="margin-top:1rem;">
+                <button type="submit" class="admin-btn admin-btn--primary">Criar Cupom</button>
+                <button type="button" class="admin-btn" onclick="toggleForm()" style="margin-left:.5rem;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabela de cupons -->
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Desconto</th>
+                    <th>Validade</th>
+                    <th>Usos</th>
+                    <th>Status</th>
+                    <th width="240">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cupom in cupons %}
+                <tr id="row-{{ cupom.id }}">
+                    <td><strong>{{ cupom.codigo }}</strong></td>
+                    <td>{{ cupom.desconto_percentual|int }}%</td>
+                    <td>
+                        {% if cupom.validade %}
+                            {{ cupom.validade.strftime('%d/%m/%Y') }}
+                        {% else %}
+                            <span style="color:var(--admin-text-muted)">Sem prazo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ cupom.usos_atuais }}
+                        {% if cupom.usos_maximos %}/ {{ cupom.usos_maximos }}{% endif %}
+                    </td>
+                    <td>
+                        <span id="badge-{{ cupom.id }}" class="admin-badge {% if cupom.ativo %}admin-badge--success{% else %}admin-badge--muted{% endif %}">
+                            {% if cupom.ativo %}Ativo{% else %}Inativo{% endif %}
+                        </span>
+                    </td>
+                    <td class="admin-table__actions">
+                        <!-- Toggle ativo/inativo -->
+                        <button class="admin-btn admin-btn--small"
+                                onclick="toggleCupom({{ cupom.id }}, this)"
+                                id="btn-toggle-{{ cupom.id }}">
+                            {% if cupom.ativo %}Desativar{% else %}Ativar{% endif %}
+                        </button>
+
+                        <!-- Enviar email -->
+                        <button class="admin-btn admin-btn--small admin-btn--info"
+                                onclick="abrirModalEmail({{ cupom.id }}, '{{ cupom.codigo }}', {{ cupom.desconto_percentual|int }})">
+                            Enviar Email
+                        </button>
+
+                        <!-- Deletar -->
+                        <form method="POST" action="{{ url_for('admin.deletar_cupom', id=cupom.id) }}" style="display:inline"
+                              onsubmit="return confirm('Deletar o cupom \'{{ cupom.codigo }}\'?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="admin-btn admin-btn--small admin-btn--danger">Deletar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align:center; padding:2rem; color:var(--admin-text-muted);">
+                        Nenhum cupom cadastrado. Crie o primeiro cupom acima.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal de confirmação de envio de email -->
+<div id="modal-email" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:2rem; max-width:420px; width:90%;">
+        <h3 style="margin:0 0 1rem; font-size:1.1rem;">Enviar Cupom por Email</h3>
+        <p style="color:#4B5563; margin-bottom:1.5rem;">
+            Você está prestes a enviar o cupom <strong id="modal-codigo"></strong>
+            (<strong id="modal-pct"></strong>% de desconto) para
+            <strong>{{ total_usuarios }} usuário(s)</strong> cadastrados.
+        </p>
+        <div style="display:flex; gap:.75rem;">
+            <button class="admin-btn admin-btn--primary" id="btn-confirmar-email">Confirmar e Enviar</button>
+            <button class="admin-btn" onclick="fecharModal()">Cancelar</button>
+        </div>
+        <p id="modal-resultado" style="margin-top:1rem; color:#16a34a; display:none;"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleForm() {
+    const f = document.getElementById('form-novo-cupom');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleCupom(id, btn) {
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    fetch('/admin/cupons/' + id + '/toggle', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const badge = document.getElementById('badge-' + id);
+        if (data.ativo) {
+            badge.textContent = 'Ativo';
+            badge.className = 'admin-badge admin-badge--success';
+            btn.textContent = 'Desativar';
+        } else {
+            badge.textContent = 'Inativo';
+            badge.className = 'admin-badge admin-badge--muted';
+            btn.textContent = 'Ativar';
+        }
+    });
+}
+
+let cupomEmailId = null;
+
+function abrirModalEmail(id, codigo, pct) {
+    cupomEmailId = id;
+    document.getElementById('modal-codigo').textContent = codigo;
+    document.getElementById('modal-pct').textContent = pct;
+    document.getElementById('modal-resultado').style.display = 'none';
+    document.getElementById('btn-confirmar-email').disabled = false;
+    document.getElementById('modal-email').style.display = 'flex';
+}
+
+function fecharModal() {
+    document.getElementById('modal-email').style.display = 'none';
+    cupomEmailId = null;
+}
+
+document.getElementById('btn-confirmar-email').addEventListener('click', function() {
+    if (!cupomEmailId) return;
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    this.disabled = true;
+    this.textContent = 'Enviando…';
+    fetch('/admin/cupons/' + cupomEmailId + '/enviar-email', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const res = document.getElementById('modal-resultado');
+        res.textContent = data.mensagem;
+        res.style.display = 'block';
+        document.getElementById('btn-confirmar-email').textContent = 'Enviado!';
+        setTimeout(fecharModal, 2000);
+    })
+    .catch(() => {
+        document.getElementById('btn-confirmar-email').disabled = false;
+        document.getElementById('btn-confirmar-email').textContent = 'Confirmar e Enviar';
+    });
+});
+
+// Fechar modal clicando fora
+document.getElementById('modal-email').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+});
+</script>
+{% endblock %}
