@@ -84,31 +84,34 @@ def enviar_email_verificacao(email, codigo):
     Returns:
         bool: True se enviado com sucesso, False caso contrário
     """
-    # Modo desenvolvimento - apenas logar
     if current_app.config.get('TESTING'):
         current_app.logger.warning(
             f'[MODO DEV] Código de verificação para {email}: {codigo}'
         )
         return True
 
-    try:
-        msg = Message(
-            subject='Verifique seu email - FERRATO',
-            recipients=[email],
-            sender=current_app.config.get('MAIL_DEFAULT_SENDER')
-        )
+    import threading
+    app = current_app._get_current_object()
+    html_body = render_template('auth/email_verificacao.html', codigo=codigo)
+    txt_body = render_template('auth/email_verificacao.txt', codigo=codigo)
 
-        # Renderizar templates HTML e texto
-        msg.html = render_template('auth/email_verificacao.html', codigo=codigo)
-        msg.body = render_template('auth/email_verificacao.txt', codigo=codigo)
+    def _send():
+        with app.app_context():
+            try:
+                msg = Message(
+                    subject='Verifique seu email - FERRATO',
+                    recipients=[email],
+                    sender=app.config.get('MAIL_DEFAULT_SENDER')
+                )
+                msg.html = html_body
+                msg.body = txt_body
+                mail.send(msg)
+                app.logger.info(f'Email de verificação enviado para {email}')
+            except Exception as e:
+                app.logger.error(f'Erro ao enviar email para {email}: {str(e)}')
 
-        mail.send(msg)
-        current_app.logger.info(f'Email de verificação enviado para {email}')
-        return True
-
-    except Exception as e:
-        current_app.logger.error(f'Erro ao enviar email para {email}: {str(e)}')
-        return False
+    threading.Thread(target=_send, daemon=True).start()
+    return True
 
 
 def criar_token_reset_senha(email):
@@ -139,11 +142,12 @@ def criar_token_reset_senha(email):
 
 def enviar_email_reset_senha(email, nome, token):
     """
-    Envia email com link de redefinição de senha.
+    Envia email com link de redefinição de senha em background thread.
 
     Returns:
-        bool: True se enviado com sucesso
+        bool: True (imediato — envio ocorre em background)
     """
+    import threading
     from flask import url_for
     link = url_for('auth.redefinir_senha', token=token, _external=True)
 
@@ -153,20 +157,29 @@ def enviar_email_reset_senha(email, nome, token):
         )
         return True
 
-    try:
-        msg = Message(
-            subject='Redefinição de senha - FERRATO',
-            recipients=[email],
-            sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
-        )
-        msg.html = render_template('auth/email_reset_senha.html', nome=nome, link=link)
-        msg.body = render_template('auth/email_reset_senha.txt', nome=nome, link=link)
-        mail.send(msg)
-        current_app.logger.info(f'Email de reset de senha enviado para {email}')
-        return True
-    except Exception as e:
-        current_app.logger.error(f'Erro ao enviar email de reset para {email}: {e}')
-        return False
+    # Capturar referência real ao app e renderizar templates antes de lançar a thread
+    # (proxies Flask não funcionam fora do request context)
+    app = current_app._get_current_object()
+    html_body = render_template('auth/email_reset_senha.html', nome=nome, link=link)
+    txt_body = render_template('auth/email_reset_senha.txt', nome=nome, link=link)
+
+    def _send():
+        with app.app_context():
+            try:
+                msg = Message(
+                    subject='Redefinição de senha - FERRATO',
+                    recipients=[email],
+                    sender=app.config.get('MAIL_DEFAULT_SENDER'),
+                )
+                msg.html = html_body
+                msg.body = txt_body
+                mail.send(msg)
+                app.logger.info(f'Email de reset de senha enviado para {email}')
+            except Exception as e:
+                app.logger.error(f'Erro ao enviar email de reset para {email}: {e}')
+
+    threading.Thread(target=_send, daemon=True).start()
+    return True
 
 
 def verificar_codigo(email, codigo):

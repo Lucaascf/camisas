@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block titulo %}Meu Perfil — FERRATO{% endblock %}
+
+{% block conteudo %}
+<section class="conta-page">
+    <div class="conta-container">
+        <div class="conta-header">
+            <h1 class="conta-title">Meu Perfil</h1>
+            <p class="conta-subtitle">Gerencie seus dados pessoais e senha de acesso.</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="form-alert form-alert--{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('main.meu_perfil') }}" class="perfil-form">
+            {{ form.hidden_tag() }}
+
+            <!-- Dados pessoais -->
+            <div class="perfil-section">
+                <h2 class="perfil-section__title">Dados Pessoais</h2>
+
+                <div class="form-group">
+                    <label class="form-label" for="nome">Nome Completo</label>
+                    {{ form.nome(id="nome", class="form-input" + (" form-input--error" if form.nome.errors else "")) }}
+                    {% for erro in form.nome.errors %}
+                    <span class="form-error">{{ erro }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-input form-input--readonly" value="{{ current_user.email }}" readonly disabled>
+                    <span class="form-hint">O email não pode ser alterado.</span>
+                </div>
+            </div>
+
+            <!-- Alterar senha -->
+            <div class="perfil-section">
+                <h2 class="perfil-section__title">Alterar Senha</h2>
+                <p class="perfil-section__hint">Preencha apenas se quiser mudar sua senha.</p>
+
+                <div class="form-group">
+                    <label class="form-label" for="senha_atual">Senha Atual</label>
+                    {{ form.senha_atual(id="senha_atual", class="form-input" + (" form-input--error" if form.senha_atual.errors else ""), autocomplete="current-password") }}
+                    {% for erro in form.senha_atual.errors %}
+                    <span class="form-error">{{ erro }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="nova_senha">Nova Senha</label>
+                    {{ form.nova_senha(id="nova_senha", class="form-input" + (" form-input--error" if form.nova_senha.errors else ""), autocomplete="new-password") }}
+                    {% for erro in form.nova_senha.errors %}
+                    <span class="form-error">{{ erro }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="confirmar_senha">Confirmar Nova Senha</label>
+                    {{ form.confirmar_senha(id="confirmar_senha", class="form-input" + (" form-input--error" if form.confirmar_senha.errors else ""), autocomplete="new-password") }}
+                    {% for erro in form.confirmar_senha.errors %}
+                    <span class="form-error">{{ erro }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="perfil-actions">
+                <button type="submit" class="perfil-btn-salvar">Salvar Alterações</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<style>
+.perfil-form {
+    max-width: 560px;
+}
+
+.perfil-section {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.perfil-section:last-of-type {
+    border-bottom: none;
+}
+
+.perfil-section__title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1A1A1A;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.02em;
+}
+
+.perfil-section__hint {
+    font-size: 0.85rem;
+    color: #8B8B8B;
+    margin-top: -1rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1A1A1A;
+    margin-bottom: 0.5rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e5e5e5;
+    background: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    color: #1A1A1A;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    border-color: #1A1A1A;
+}
+
+.form-input--readonly {
+    background: #f5f5f5;
+    color: #8B8B8B;
+    cursor: not-allowed;
+}
+
+.form-input--error {
+    border-color: #c0392b;
+}
+
+.form-error {
+    display: block;
+    font-size: 0.8rem;
+    color: #c0392b;
+    margin-top: 0.35rem;
+}
+
+.form-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: #8B8B8B;
+    margin-top: 0.35rem;
+}
+
+.form-alert {
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    max-width: 560px;
+}
+
+.form-alert--success {
+    background: #f0faf0;
+    border-left: 3px solid #27ae60;
+    color: #1e7e44;
+}
+
+.form-alert--error {
+    background: #fff5f5;
+    border-left: 3px solid #c0392b;
+    color: #a93226;
+}
+
+.perfil-actions {
+    margin-top: 2rem;
+}
+
+.perfil-btn-salvar {
+    display: inline-block;
+    padding: 0.85rem 2.5rem;
+    background: #1f2937;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.perfil-btn-salvar:hover {
+    background: #111827;
+}
+</style>
+{% endblock %}

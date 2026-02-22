@@ -1,10 +1,11 @@
 """Rotas do blueprint principal."""
 
-from flask import render_template, send_file, abort
+from flask import render_template, send_file, abort, flash, redirect, url_for
 from flask_login import login_required, current_user
 from io import BytesIO
 from app.blueprints.main import main_bp
 from app.models import Category, Product, ProductImage, Order, Wishlist
+from app.forms import EditarPerfilForm
 from app import db
 
 
@@ -61,6 +62,30 @@ def meus_favoritos():
     """Lista de produtos favoritos do usuário."""
     favoritos = Wishlist.query.filter_by(user_id=current_user.id).order_by(Wishlist.criado_em.desc()).all()
     return render_template('conta/favoritos.html', favoritos=favoritos)
+
+
+@main_bp.route('/conta/perfil', methods=['GET', 'POST'])
+@login_required
+def meu_perfil():
+    """Página de edição do perfil do usuário."""
+    form = EditarPerfilForm(obj=current_user)
+    if form.validate_on_submit():
+        current_user.nome = form.nome.data.strip()
+
+        if form.senha_atual.data:
+            if not current_user.check_senha(form.senha_atual.data):
+                flash('Senha atual incorreta.', 'error')
+                return render_template('conta/perfil.html', form=form)
+            if not form.nova_senha.data:
+                flash('Informe a nova senha.', 'error')
+                return render_template('conta/perfil.html', form=form)
+            current_user.set_senha(form.nova_senha.data)
+
+        db.session.commit()
+        flash('Perfil atualizado com sucesso.', 'success')
+        return redirect(url_for('main.meu_perfil'))
+
+    return render_template('conta/perfil.html', form=form)
 
 
 @main_bp.route('/produto/imagem/<int:image_id>')

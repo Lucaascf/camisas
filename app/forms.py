@@ -266,3 +266,22 @@ class CheckoutForm(FlaskForm):
 
     frete_tipo  = HiddenField('Tipo de Frete')
     frete_valor = HiddenField('Valor do Frete')
+
+
+class EditarPerfilForm(FlaskForm):
+    """Formulário de edição de perfil do usuário."""
+
+    nome = StringField('Nome Completo', validators=[
+        DataRequired(message='Nome é obrigatório'),
+        Length(min=3, max=100, message='Nome deve ter entre 3 e 100 caracteres')
+    ])
+
+    senha_atual = PasswordField('Senha Atual', validators=[Optional()])
+    nova_senha = PasswordField('Nova Senha', validators=[
+        Optional(),
+        Length(min=8, message='A senha deve ter pelo menos 8 caracteres')
+    ])
+    confirmar_senha = PasswordField('Confirmar Nova Senha', validators=[
+        Optional(),
+        EqualTo('nova_senha', message='As senhas não coincidem')
+    ])

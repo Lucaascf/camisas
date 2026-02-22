@@ -50,6 +50,7 @@
                         </div>
                         <a href="{{ url_for('main.meus_pedidos') }}" class="header__account-link">Meus Pedidos</a>
                         <a href="{{ url_for('main.meus_favoritos') }}" class="header__account-link">Favoritos</a>
+                        <a href="{{ url_for('main.meu_perfil') }}" class="header__account-link">Meu Perfil</a>
                         <a href="{{ url_for('auth.logout') }}" class="header__account-link">Sair</a>
                     {% else %}
                         <a href="{{ url_for('auth.login') }}" class="header__account-link">Entrar</a>
