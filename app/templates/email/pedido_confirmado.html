@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedido Confirmado - FERRATO</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background-color: #FAFAFA;
+            color: #1A1A1A;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #FFFFFF;
+            border: 1px solid #E5E5E5;
+        }
+        .email-header {
+            background-color: #1f2937;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        .email-logo {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 32px;
+            font-weight: 600;
+            color: #C8A35F;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+        .email-body {
+            padding: 40px;
+        }
+        .email-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 24px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin: 0 0 8px 0;
+            text-align: center;
+        }
+        .email-subtitle {
+            font-size: 15px;
+            color: #8B8B8B;
+            text-align: center;
+            margin: 0 0 32px 0;
+        }
+        .destaque {
+            background-color: #FAFAFA;
+            border: 2px solid #C8A35F;
+            padding: 20px 24px;
+            margin: 0 0 32px 0;
+            text-align: center;
+        }
+        .destaque__label {
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #8B8B8B;
+            margin: 0 0 4px 0;
+        }
+        .destaque__valor {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 0;
+        }
+        .section-title {
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #8B8B8B;
+            margin: 0 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5E5E5;
+        }
+        table.itens {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+        }
+        table.itens th {
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #8B8B8B;
+            text-align: left;
+            padding: 0 0 8px 0;
+            border-bottom: 1px solid #E5E5E5;
+        }
+        table.itens th.right {
+            text-align: right;
+        }
+        table.itens td {
+            font-size: 14px;
+            color: #1A1A1A;
+            padding: 10px 0;
+            border-bottom: 1px solid #F0F0F0;
+            vertical-align: top;
+        }
+        table.itens td.right {
+            text-align: right;
+        }
+        .item-nome {
+            font-weight: 500;
+        }
+        .item-detalhe {
+            font-size: 12px;
+            color: #8B8B8B;
+            margin-top: 2px;
+        }
+        .totais {
+            margin-bottom: 32px;
+        }
+        .totais__linha {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #1A1A1A;
+            padding: 4px 0;
+        }
+        .totais__linha--total {
+            font-weight: 700;
+            font-size: 16px;
+            padding-top: 10px;
+            border-top: 2px solid #1A1A1A;
+            margin-top: 6px;
+        }
+        .endereco-bloco {
+            background-color: #FAFAFA;
+            padding: 16px 20px;
+            margin-bottom: 32px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #1A1A1A;
+        }
+        .prazo-bloco {
+            background-color: #FAFAFA;
+            border-left: 3px solid #C8A35F;
+            padding: 14px 18px;
+            font-size: 14px;
+            color: #1A1A1A;
+            margin-bottom: 32px;
+        }
+        .prazo-bloco strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+        .email-footer {
+            background-color: #FAFAFA;
+            padding: 20px 40px;
+            text-align: center;
+            border-top: 1px solid #E5E5E5;
+        }
+        .email-footer__text {
+            font-size: 12px;
+            color: #8B8B8B;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+
+        <div class="email-header">
+            <h1 class="email-logo">FERRATO</h1>
+        </div>
+
+        <div class="email-body">
+
+            <h2 class="email-title">Pedido confirmado!</h2>
+            <p class="email-subtitle">Olá, {{ pedido.nome.split()[0] }}. Seu pagamento foi aprovado.</p>
+
+            <div class="destaque">
+                <p class="destaque__label">Número do pedido</p>
+                <p class="destaque__valor">#{{ pedido.codigo_cliente }}</p>
+            </div>
+
+            <!-- Itens -->
+            <p class="section-title">Itens do pedido</p>
+            <table class="itens">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th class="right">Qtd</th>
+                        <th class="right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pedido.items %}
+                    <tr>
+                        <td>
+                            <div class="item-nome">{{ item.product.nome }}</div>
+                            {% if item.tamanho %}
+                            <div class="item-detalhe">Tamanho: {{ item.tamanho }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="right">{{ item.quantidade }}</td>
+                        <td class="right">R$ {{ "%.2f"|format(item.preco_unitario * item.quantidade)|replace('.', ',') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Totais -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+                <tr>
+                    <td style="font-size:14px;color:#1A1A1A;padding:4px 0;">Subtotal</td>
+                    <td style="font-size:14px;color:#1A1A1A;padding:4px 0;text-align:right;">R$ {{ "%.2f"|format(pedido.total - pedido.frete_valor)|replace('.', ',') }}</td>
+                </tr>
+                <tr>
+                    <td style="font-size:14px;color:#1A1A1A;padding:4px 0;">Frete{% if pedido.frete_tipo %} ({{ pedido.frete_tipo }}){% endif %}</td>
+                    <td style="font-size:14px;color:#1A1A1A;padding:4px 0;text-align:right;">{% if pedido.frete_valor == 0 %}Grátis{% else %}R$ {{ "%.2f"|format(pedido.frete_valor)|replace('.', ',') }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <td style="font-size:16px;font-weight:700;color:#1A1A1A;padding:10px 0 0;border-top:2px solid #1A1A1A;">Total</td>
+                    <td style="font-size:16px;font-weight:700;color:#1A1A1A;padding:10px 0 0;text-align:right;border-top:2px solid #1A1A1A;">R$ {{ "%.2f"|format(pedido.total)|replace('.', ',') }}</td>
+                </tr>
+            </table>
+
+            <!-- Endereço -->
+            <p class="section-title">Endereço de entrega</p>
+            <div class="endereco-bloco">
+                {{ pedido.endereco }}, {{ pedido.numero }}
+                {% if pedido.complemento %} — {{ pedido.complemento }}{% endif %}<br>
+                {{ pedido.bairro }}, {{ pedido.cidade }} — {{ pedido.estado }}<br>
+                CEP {{ pedido.cep }}
+            </div>
+
+            <!-- Prazo estimado -->
+            {% if pedido.frete_tipo %}
+            <div class="prazo-bloco">
+                <strong>Prazo de entrega</strong>
+                Transportadora: {{ pedido.frete_tipo }}. Após o envio você receberá um email com o código de rastreio.
+            </div>
+            {% endif %}
+
+        </div>
+
+        <div class="email-footer">
+            <p class="email-footer__text">
+                &copy; 2026 FERRATO — Camisas Masculinas de Luxo
+            </p>
+        </div>
+
+    </div>
+</body>
+</html>

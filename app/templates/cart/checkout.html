@@ -129,6 +129,20 @@
                         </div>
                     </fieldset>
 
+                    <!-- Frete -->
+                    <div id="frete-section" style="display:none">
+                        <fieldset class="checkout__fieldset">
+                            <legend class="checkout__legend">Frete</legend>
+                            <div id="frete-loading" style="display:none; color:#888; font-size:14px;">
+                                Calculando opções de frete…
+                            </div>
+                            <div id="frete-opcoes" class="checkout__frete-lista"></div>
+                            <div id="frete-erro" style="display:none; color:#888; font-size:13px;"></div>
+                        </fieldset>
+                    </div>
+                    <input type="hidden" name="frete_tipo"  id="frete_tipo"  value="">
+                    <input type="hidden" name="frete_valor" id="frete_valor" value="">
+
                     <button type="submit" class="checkout__submit-btn">Confirmar Pedido</button>
                 </form>
             </div>
@@ -154,9 +168,14 @@
                     {% endfor %}
                 </div>
 
+                <div id="frete-resumo" class="checkout__summary-frete" style="display:none">
+                    <span id="frete-resumo-label">Frete</span>
+                    <span id="frete-resumo-valor">R$ 0,00</span>
+                </div>
+
                 <div class="checkout__summary-total">
                     <span>Total</span>
-                    <span>R$ {{ "%.2f"|format(total)|replace('.', ',') }}</span>
+                    <span id="total-display">R$ {{ "%.2f"|format(total)|replace('.', ',') }}</span>
                 </div>
             </aside>
         </div>
@@ -167,7 +186,81 @@
 {% block scripts %}
 <script>
 (function() {
-    // Máscara de CEP
+    const SUBTOTAL = {{ total }};
+
+    // ── Frete ─────────────────────────────────────────────
+    function calcularFrete(cep) {
+        const qtd = {{ itens | sum(attribute='quantidade') }};
+        document.getElementById('frete-section').style.display = 'block';
+        document.getElementById('frete-loading').style.display = 'block';
+        document.getElementById('frete-opcoes').innerHTML = '';
+        document.getElementById('frete-erro').style.display = 'none';
+
+        const csrf = document.querySelector('meta[name="csrf-token"]') &&
+                     document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        fetch('/cart/calcular-frete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf || ''
+            },
+            body: JSON.stringify({cep: cep, qtd: qtd})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('frete-loading').style.display = 'none';
+            if (data.erro) {
+                document.getElementById('frete-erro').textContent = data.erro;
+                document.getElementById('frete-erro').style.display = 'block';
+                return;
+            }
+            renderFrete(data.opcoes);
+        })
+        .catch(function() {
+            document.getElementById('frete-loading').style.display = 'none';
+            document.getElementById('frete-erro').textContent = 'Erro ao calcular frete.';
+            document.getElementById('frete-erro').style.display = 'block';
+        });
+    }
+
+    function renderFrete(opcoes) {
+        const container = document.getElementById('frete-opcoes');
+        container.innerHTML = opcoes.map(function(op, i) {
+            return '<label class="checkout__frete-option">' +
+                '<input type="radio" name="frete_radio" value="' + op.id + '"' +
+                ' data-preco="' + op.preco + '" data-nome="' + op.id + '"' +
+                (i === 0 ? ' checked' : '') + '>' +
+                '<span class="checkout__frete-info">' +
+                '<strong>' + op.transportadora + '</strong> ' + op.nome +
+                '<small class="checkout__frete-prazo">' + op.prazo + '</small>' +
+                '</span>' +
+                '<span class="checkout__frete-preco">R$ ' + op.preco.toFixed(2).replace('.', ',') + '</span>' +
+                '</label>';
+        }).join('');
+
+        // Selecionar o primeiro por padrão
+        selecionarFrete(opcoes[0].preco, opcoes[0].id);
+
+        container.querySelectorAll('input[name=frete_radio]').forEach(function(r) {
+            r.addEventListener('change', function() {
+                selecionarFrete(parseFloat(r.dataset.preco), r.dataset.nome);
+            });
+        });
+    }
+
+    function selecionarFrete(preco, nome) {
+        document.getElementById('frete_tipo').value  = nome;
+        document.getElementById('frete_valor').value = preco;
+        const total = SUBTOTAL + preco;
+        document.getElementById('total-display').textContent =
+            'R$ ' + total.toFixed(2).replace('.', ',');
+        document.getElementById('frete-resumo').style.display = 'flex';
+        document.getElementById('frete-resumo-label').textContent = nome;
+        document.getElementById('frete-resumo-valor').textContent =
+            'R$ ' + preco.toFixed(2).replace('.', ',');
+    }
+
+    // ── Máscara de CEP ────────────────────────────────────
     const cepInput = document.getElementById('cep');
     if (cepInput) {
         cepInput.addEventListener('input', function(e) {
@@ -179,27 +272,29 @@
             e.target.value = value;
         });
 
-        // Buscar CEP (opcional - requer API externa)
         cepInput.addEventListener('blur', function(e) {
             const cep = e.target.value.replace(/\D/g, '');
             if (cep.length === 8) {
-                fetch(`https://viacep.com.br/ws/${cep}/json/`)
-                    .then(r => r.json())
-                    .then(data => {
+                fetch('https://viacep.com.br/ws/' + cep + '/json/')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
                         if (!data.erro) {
                             document.getElementById('endereco').value = data.logradouro || '';
-                            document.getElementById('bairro').value = data.bairro || '';
-                            document.getElementById('cidade').value = data.localidade || '';
-                            document.getElementById('estado').value = data.uf || '';
+                            document.getElementById('bairro').value   = data.bairro || '';
+                            document.getElementById('cidade').value   = data.localidade || '';
+                            document.getElementById('estado').value   = data.uf || '';
                             document.getElementById('numero').focus();
                         }
+                        calcularFrete(cep);
                     })
-                    .catch(() => {});
+                    .catch(function() {
+                        calcularFrete(cep);
+                    });
             }
         });
     }
 
-    // Máscara de telefone
+    // ── Máscara de telefone ───────────────────────────────
     const telInput = document.getElementById('telefone');
     if (telInput) {
         telInput.addEventListener('input', function(e) {

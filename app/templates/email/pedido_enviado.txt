@@ -1,0 +1,34 @@
+FERRATO — Camisas Masculinas de Luxo
+=====================================
+
+Olá, {{ pedido.nome.split()[0] }}!
+
+Seu pedido #{{ pedido.codigo_cliente }} foi enviado e está a caminho.
+
+{% if pedido.codigo_rastreio -%}
+CÓDIGO DE RASTREIO
+------------------
+{{ pedido.codigo_rastreio }}
+
+{% if pedido.frete_tipo and 'jadlog' in pedido.frete_tipo|lower -%}
+Rastrear: https://www.jadlog.com.br/jadlog/tracking.jad?cte={{ pedido.codigo_rastreio }}
+{% else -%}
+Rastrear (Correios): https://rastreamento.correios.com.br/app/index.php
+{% endif %}
+{% endif %}
+
+RESUMO DO PEDIDO
+----------------
+{% for item in pedido.items -%}
+{{ item.product.nome }}{% if item.tamanho %} ({{ item.tamanho }}){% endif %} — {{ item.quantidade }}x — R$ {{ "%.2f"|format(item.preco_unitario * item.quantidade)|replace('.', ',') }}
+{% endfor %}
+
+ENDEREÇO DE ENTREGA
+-------------------
+{{ pedido.endereco }}, {{ pedido.numero }}{% if pedido.complemento %} — {{ pedido.complemento }}{% endif %}
+
+{{ pedido.bairro }}, {{ pedido.cidade }} — {{ pedido.estado }}
+CEP {{ pedido.cep }}
+
+---
+© 2026 FERRATO — Camisas Masculinas de Luxo

@@ -2,7 +2,7 @@
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import MultipleFileField, FileAllowed
-from wtforms import StringField, PasswordField, BooleanField, TextAreaField, DecimalField, IntegerField, SelectField
+from wtforms import StringField, PasswordField, BooleanField, TextAreaField, DecimalField, IntegerField, SelectField, HiddenField
 from wtforms.validators import DataRequired, EqualTo, Length, ValidationError, Optional, NumberRange
 
 from app.models import User, Product, Category
@@ -199,3 +199,6 @@ class CheckoutForm(FlaskForm):
         ('RS', 'Rio Grande do Sul'), ('RO', 'Rondônia'), ('RR', 'Roraima'), ('SC', 'Santa Catarina'),
         ('SP', 'São Paulo'), ('SE', 'Sergipe'), ('TO', 'Tocantins')
     ])
+
+    frete_tipo  = HiddenField('Tipo de Frete')
+    frete_valor = HiddenField('Valor do Frete')

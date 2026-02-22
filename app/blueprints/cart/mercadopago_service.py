@@ -103,6 +103,10 @@ def criar_preferencia(pedido, itens):
     if not is_localhost:
         preference_data['auto_return'] = 'approved'
 
+    # Webhook: só quando há URL pública configurada (não localhost)
+    if base_url and not is_localhost:
+        preference_data['notification_url'] = f'{base_url}/cart/webhook/mercadopago'
+
     # Criar preferência no MP
     current_app.logger.warning(f"[MP DIAGNÓSTICO] preference_data enviado:\n{json.dumps(preference_data, indent=2, ensure_ascii=False)}")
     resultado = sdk.preference().create(preference_data)
@@ -117,6 +121,32 @@ def criar_preferencia(pedido, itens):
     init_point = response_data['sandbox_init_point'] if is_sandbox else response_data['init_point']
 
     return preference_id, init_point
+
+
+def consultar_pagamento_por_id(payment_id):
+    """Busca pagamento direto pelo ID. Retorna status e order_id."""
+    sdk = _get_sdk()
+    result = sdk.payment().get(payment_id)
+    if result['status'] != 200:
+        return None
+    payment = result['response']
+    external_ref = payment.get('external_reference', '')  # 'FERRATO-{order_id}'
+    order_id = None
+    if external_ref.startswith('FERRATO-'):
+        try:
+            order_id = int(external_ref.split('-')[1])
+        except (IndexError, ValueError):
+            pass
+    status_map = {
+        'approved': 'approved', 'pending': 'pending', 'in_process': 'pending',
+        'rejected': 'rejected', 'cancelled': 'cancelled',
+        'refunded': 'cancelled', 'charged_back': 'cancelled',
+    }
+    return {
+        'status': status_map.get(payment.get('status', ''), 'pending'),
+        'payment_id': str(payment.get('id')),
+        'order_id': order_id,
+    }
 
 
 def consultar_pagamento(preference_id):

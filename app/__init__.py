@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()  # DEVE ser chamado ANTES de importar config
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from flask import Flask, session
+from flask import Flask, has_request_context, session
 from flask_login import LoginManager, current_user
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
@@ -64,6 +65,17 @@ def criar_app(config_class=ConfigDesenvolvimento):
     from app.seed import register_commands
     register_commands(app)
 
+    # --- Filtros Jinja2 ---
+    def hora_brasilia(dt, fmt='%d/%m/%Y %H:%M'):
+        """Converte datetime UTC para horário de Brasília e formata."""
+        if dt is None:
+            return ''
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+        return dt.astimezone(ZoneInfo('America/Sao_Paulo')).strftime(fmt)
+
+    app.jinja_env.filters['hora_brasilia'] = hora_brasilia
+
     # --- Context Processors ---
     @app.context_processor
     def variaveis_globais():
@@ -72,11 +84,11 @@ def criar_app(config_class=ConfigDesenvolvimento):
 
         # Contagem de itens no carrinho
         cart_count = 0
-        if current_user.is_authenticated:
+        if has_request_context() and current_user.is_authenticated:
             cart_count = db.session.query(
                 db.func.coalesce(db.func.sum(CartItem.quantidade), 0)
             ).filter_by(user_id=current_user.id).scalar()
-        elif 'cart_session_id' in session:
+        elif has_request_context() and 'cart_session_id' in session:
             cart_count = db.session.query(
                 db.func.coalesce(db.func.sum(CartItem.quantidade), 0)
             ).filter_by(session_id=session['cart_session_id']).scalar()

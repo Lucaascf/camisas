@@ -191,8 +191,13 @@ class Order(db.Model):
     mercadopago_preference_id = db.Column(db.String(200), nullable=True)
     mercadopago_payment_id = db.Column(db.String(200), nullable=True)
 
+    # Frete
+    frete_tipo  = db.Column(db.String(60), nullable=True)
+    frete_valor = db.Column(db.Float, default=0.0)
+
     # Logística
     codigo_rastreio = db.Column(db.String(100), nullable=True)
+    codigo_cliente = db.Column(db.String(15), unique=True, nullable=True)
 
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

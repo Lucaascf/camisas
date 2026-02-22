@@ -36,6 +36,10 @@
                 <dt>Bairro</dt><dd>{{ pedido.bairro }}</dd>
                 <dt>Cidade/UF</dt><dd>{{ pedido.cidade }} — {{ pedido.estado }}</dd>
                 <dt>CEP</dt><dd>{{ pedido.cep }}</dd>
+                {% if pedido.frete_tipo %}
+                <dt>Transportadora</dt><dd>{{ pedido.frete_tipo }}</dd>
+                {% endif %}
+                <dt>Frete</dt><dd>{% if pedido.frete_valor == 0 %}Grátis{% else %}R$ {{ "%.2f"|format(pedido.frete_valor)|replace('.', ',') }}{% endif %}</dd>
             </dl>
         </div>
     </div>
@@ -79,7 +83,8 @@
         <div class="admin-card">
             <h3 class="admin-card__title">Pagamento</h3>
             <dl class="admin-dl">
-                <dt>Data</dt><dd>{{ pedido.criado_em.strftime('%d/%m/%Y às %H:%M') }}</dd>
+                <dt>Código do cliente</dt><dd>{{ pedido.codigo_cliente or '—' }}</dd>
+                <dt>Data</dt><dd>{{ pedido.criado_em | hora_brasilia('%d/%m/%Y às %H:%M') }}</dd>
                 {% if pedido.mercadopago_payment_id %}
                 <dt>ID Mercado Pago</dt><dd style="word-break: break-all;">{{ pedido.mercadopago_payment_id }}</dd>
                 {% endif %}
@@ -88,6 +93,17 @@
                 {% endif %}
                 {% if pedido.codigo_rastreio %}
                 <dt>Código de rastreio</dt><dd><strong>{{ pedido.codigo_rastreio }}</strong></dd>
+                {% endif %}
+                {% if pedido.status == 'aguardando_pagamento' and pedido.mercadopago_preference_id %}
+                <dt>Ação</dt>
+                <dd>
+                    <form method="POST" action="{{ url_for('admin.pedido_verificar_pagamento', id=pedido.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="admin-btn admin-btn--small admin-btn--primary">
+                            Verificar pagamento no MP
+                        </button>
+                    </form>
+                </dd>
                 {% endif %}
             </dl>
         </div>

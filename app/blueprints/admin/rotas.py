@@ -1,7 +1,8 @@
 """Rotas do painel administrativo."""
 
+import logging
 import re
-from flask import render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 
@@ -9,6 +10,8 @@ from app import db
 from app.blueprints.admin import admin_bp
 from app.forms import ProductForm
 from app.models import Product, Category, ProductImage, ProductVariant, Order
+
+logger = logging.getLogger(__name__)
 
 
 def admin_required(f):
@@ -66,7 +69,65 @@ def pedido_atualizar_status(id):
         pedido.codigo_rastreio = codigo_rastreio
 
     db.session.commit()
+
+    if novo_status == 'enviado':
+        from threading import Thread
+        from app.blueprints.cart.email_pedido_service import enviar_email_pedido_enviado
+        app = current_app._get_current_object()
+        pedido_id = pedido.id
+        def _enviar_em_background(app, pedido_id):
+            with app.app_context():
+                try:
+                    from app.models import Order
+                    pedido_fresh = Order.query.get(pedido_id)
+                    if pedido_fresh:
+                        enviar_email_pedido_enviado(pedido_fresh)
+                except Exception as e:
+                    logger.error("EMAIL PEDIDO: erro ao enviar notificação de envio — %s", e)
+        Thread(target=_enviar_em_background, args=(app, pedido_id), daemon=True).start()
+
     flash(f'Status do pedido #{pedido.id} atualizado para "{novo_status}".', 'success')
+    return redirect(url_for('admin.pedido_detalhe', id=id))
+
+
+@admin_bp.route('/pedidos/<int:id>/verificar-pagamento', methods=['POST'])
+@admin_required
+def pedido_verificar_pagamento(id):
+    """Consulta o MP e confirma (ou cancela) um pedido manualmente."""
+    from app.blueprints.cart import mercadopago_service
+    from app.blueprints.cart.email_pedido_service import enviar_email_pedido_confirmado
+
+    pedido = Order.query.get_or_404(id)
+    if pedido.status != 'aguardando_pagamento' or not pedido.mercadopago_preference_id:
+        flash('Este pedido não está aguardando pagamento.', 'warning')
+        return redirect(url_for('admin.pedido_detalhe', id=id))
+
+    try:
+        resultado = mercadopago_service.consultar_pagamento(pedido.mercadopago_preference_id)
+        if resultado['status'] == 'approved':
+            for item in pedido.items:
+                if item.variant:
+                    item.variant.estoque -= item.quantidade
+                else:
+                    item.product.estoque -= item.quantidade
+            pedido.status = 'pago'
+            pedido.mercadopago_payment_id = resultado['payment_id']
+            db.session.commit()
+            try:
+                enviar_email_pedido_confirmado(pedido)
+            except Exception as e:
+                logger.error('EMAIL PEDIDO: erro — %s', e)
+            flash(f'Pagamento confirmado! Pedido #{pedido.id} marcado como pago.', 'success')
+        elif resultado['status'] in ('rejected', 'cancelled'):
+            pedido.status = 'cancelado'
+            db.session.commit()
+            flash('Pagamento rejeitado. Pedido marcado como cancelado.', 'error')
+        else:
+            flash('Pagamento ainda pendente no Mercado Pago.', 'info')
+    except Exception as e:
+        logger.error('ADMIN VERIFICAR PAGAMENTO: erro — %s', e)
+        flash(f'Erro ao consultar MP: {e}', 'error')
+
     return redirect(url_for('admin.pedido_detalhe', id=id))
 
 

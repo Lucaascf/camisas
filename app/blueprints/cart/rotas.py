@@ -1,15 +1,21 @@
 """Rotas do carrinho de compras."""
 
+import logging
+import secrets
 import uuid
+from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
-from app import db
+from app import db, csrf
 from app.blueprints.cart import cart_bp
 from app.blueprints.cart import mercadopago_service
+from app.blueprints.cart.email_pedido_service import enviar_email_pedido_confirmado
 from app.forms import CheckoutForm
 from app.models import CartItem, Order, OrderItem, Product, ProductVariant
+
+logger = logging.getLogger(__name__)
 
 
 # ── Helpers ──────────────────────────────────────────────
@@ -210,6 +216,21 @@ def remover(item_id):
     )
 
 
+@cart_bp.route('/calcular-frete', methods=['POST'])
+def calcular_frete():
+    """Calcula opções de frete via Melhor Envio (AJAX)."""
+    from app.blueprints.cart.frete_service import calcular_frete as calc
+    data = request.get_json() or {}
+    cep = data.get('cep', '').replace('-', '')
+    qtd = int(data.get('qtd', 1))
+    if len(cep) != 8:
+        return jsonify(erro='CEP inválido'), 400
+    opcoes = calc(cep, qtd)
+    if not opcoes:
+        return jsonify(erro='Não foi possível calcular o frete para este CEP'), 503
+    return jsonify(opcoes=opcoes)
+
+
 @cart_bp.route('/checkout', methods=['GET', 'POST'])
 def checkout():
     """Página de checkout."""
@@ -228,7 +249,10 @@ def checkout():
 
     if form.validate_on_submit():
         # Calcular total
-        total = sum(item.product.preco_final * item.quantidade for item in itens)
+        subtotal    = sum(item.product.preco_final * item.quantidade for item in itens)
+        frete_valor = float(request.form.get('frete_valor') or 0)
+        frete_tipo  = request.form.get('frete_tipo', '')
+        total       = subtotal + frete_valor
 
         # Verificar estoque antes de criar o pedido
         for item in itens:
@@ -252,10 +276,17 @@ def checkout():
             cidade=form.cidade.data,
             estado=form.estado.data,
             cep=form.cep.data,
+            frete_tipo=frete_tipo,
+            frete_valor=frete_valor,
             status='aguardando_pagamento'
         )
         db.session.add(pedido)
         db.session.flush()  # Para obter o ID do pedido
+
+        # Gerar código amigável para o cliente (ex: 260221-4839)
+        _data = datetime.now(timezone.utc).strftime('%y%m%d')
+        _sufixo = 1000 + secrets.randbelow(9000)
+        pedido.codigo_cliente = f'{_data}-{_sufixo}'
 
         # Criar itens do pedido (SEM atualizar estoque ainda)
         for item in itens:
@@ -300,48 +331,113 @@ def confirmacao(order_id):
     """Página de confirmação do pedido."""
     pedido = Order.query.get_or_404(order_id)
 
-    # Verificar se o pedido pertence ao usuário atual (se logado) ou foi criado nesta sessão
     if current_user.is_authenticated:
         if pedido.user_id != current_user.id:
             flash('Pedido não encontrado.', 'error')
             return redirect(url_for('main.home'))
 
-    # Se o pedido está aguardando pagamento, consultar status no MP
-    if pedido.status == 'aguardando_pagamento' and pedido.mercadopago_preference_id:
-        try:
-            resultado = mercadopago_service.consultar_pagamento(pedido.mercadopago_preference_id)
+    # Webhook pode ter confirmado antes do usuário chegar — limpar carrinho se já pago
+    if pedido.status == 'pago':
+        if current_user.is_authenticated:
+            CartItem.query.filter_by(user_id=current_user.id).delete()
+        elif 'cart_session_id' in session:
+            CartItem.query.filter_by(session_id=session['cart_session_id']).delete()
+        db.session.commit()
 
-            if resultado['status'] == 'approved':
-                # Pagamento aprovado! Atualizar estoque e limpar carrinho
+    elif pedido.status == 'aguardando_pagamento':
+        # Usar payment_id dos query params (redirect do MP) se disponível — mais direto
+        payment_id_param = request.args.get('payment_id') or request.args.get('collection_id')
+
+        try:
+            if payment_id_param:
+                resultado = mercadopago_service.consultar_pagamento_por_id(payment_id_param)
+            elif pedido.mercadopago_preference_id:
+                resultado = mercadopago_service.consultar_pagamento(pedido.mercadopago_preference_id)
+            else:
+                resultado = {'status': 'pending', 'payment_id': None}
+
+            if resultado and resultado['status'] == 'approved':
                 for item in pedido.items:
                     if item.variant:
                         item.variant.estoque -= item.quantidade
                     else:
                         item.product.estoque -= item.quantidade
 
-                # Limpar carrinho do usuário
                 if current_user.is_authenticated:
                     CartItem.query.filter_by(user_id=current_user.id).delete()
                 elif 'cart_session_id' in session:
                     CartItem.query.filter_by(session_id=session['cart_session_id']).delete()
 
-                # Atualizar pedido
                 pedido.status = 'pago'
                 pedido.mercadopago_payment_id = resultado['payment_id']
                 db.session.commit()
 
+                try:
+                    enviar_email_pedido_confirmado(pedido)
+                except Exception as e:
+                    logger.error("EMAIL PEDIDO: erro ao enviar confirmação — %s", e)
+
                 flash('Pagamento aprovado! Pedido confirmado com sucesso.', 'success')
 
-            elif resultado['status'] == 'rejected' or resultado['status'] == 'cancelled':
-                # Pagamento rejeitado
+            elif resultado and resultado['status'] in ('rejected', 'cancelled'):
                 pedido.status = 'cancelado'
                 db.session.commit()
                 flash('Pagamento não foi aprovado. Por favor, tente novamente.', 'error')
 
-            # Se status == 'pending', mantém 'aguardando_pagamento'
-
         except Exception as e:
-            # Em caso de erro na consulta, mantém aguardando
+            logger.error("CONFIRMACAO: erro ao consultar pagamento — %s", e)
             flash('Verificando status do pagamento...', 'info')
 
     return render_template('cart/confirmacao.html', pedido=pedido)
+
+
+@cart_bp.route('/webhook/mercadopago', methods=['POST'])
+@csrf.exempt
+def webhook_mercadopago():
+    """Recebe notificações do Mercado Pago e confirma pagamentos."""
+    try:
+        data = request.get_json(silent=True) or {}
+        topic = request.args.get('topic') or data.get('type', '')
+        data_id = request.args.get('id') or request.args.get('data.id') or (data.get('data') or {}).get('id')
+
+        logger.info(f'[WEBHOOK MP] topic={topic}, data_id={data_id}')
+
+        if not data_id or topic not in ('payment', 'merchant_order'):
+            return jsonify(status='ignored'), 200
+
+        resultado = mercadopago_service.consultar_pagamento_por_id(str(data_id))
+        if not resultado or not resultado.get('order_id'):
+            return jsonify(status='not_found'), 200
+
+        pedido = Order.query.get(resultado['order_id'])
+        if not pedido:
+            return jsonify(status='order_not_found'), 200
+
+        if resultado['status'] == 'approved' and pedido.status == 'aguardando_pagamento':
+            for item in pedido.items:
+                if item.variant:
+                    item.variant.estoque -= item.quantidade
+                else:
+                    item.product.estoque -= item.quantidade
+
+            pedido.status = 'pago'
+            pedido.mercadopago_payment_id = resultado['payment_id']
+            db.session.commit()
+
+            try:
+                enviar_email_pedido_confirmado(pedido)
+            except Exception as e:
+                logger.error('EMAIL PEDIDO (webhook): erro — %s', e)
+
+            logger.info(f'[WEBHOOK MP] Pedido #{pedido.id} marcado como PAGO')
+
+        elif resultado['status'] in ('rejected', 'cancelled') and pedido.status == 'aguardando_pagamento':
+            pedido.status = 'cancelado'
+            db.session.commit()
+            logger.info(f'[WEBHOOK MP] Pedido #{pedido.id} CANCELADO')
+
+        return jsonify(status='ok'), 200
+
+    except Exception as e:
+        logger.error(f'[WEBHOOK MP] Erro: {e}')
+        return jsonify(status='error'), 500

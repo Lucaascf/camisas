@@ -45,11 +45,11 @@
             <div class="confirmation__details">
                 <div class="confirmation__detail-row">
                     <span class="confirmation__detail-label">Número do Pedido:</span>
-                    <span class="confirmation__detail-value">#{{ pedido.id }}</span>
+                    <span class="confirmation__detail-value">#{{ pedido.codigo_cliente }}</span>
                 </div>
                 <div class="confirmation__detail-row">
                     <span class="confirmation__detail-label">Data:</span>
-                    <span class="confirmation__detail-value">{{ pedido.criado_em.strftime('%d/%m/%Y às %H:%M') }}</span>
+                    <span class="confirmation__detail-value">{{ pedido.criado_em | hora_brasilia('%d/%m/%Y às %H:%M') }}</span>
                 </div>
                 <div class="confirmation__detail-row">
                     <span class="confirmation__detail-label">Total:</span>

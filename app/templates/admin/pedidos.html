@@ -40,7 +40,7 @@
                 <tr>
                     <td><strong>#{{ pedido.id }}</strong></td>
                     <td style="font-size: 0.85rem; color: #666;">
-                        {{ pedido.criado_em.strftime('%d/%m/%Y %H:%M') }}
+                        {{ pedido.criado_em | hora_brasilia }}
                     </td>
                     <td>
                         <div>{{ pedido.nome }}</div>
