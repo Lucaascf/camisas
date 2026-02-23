@@ -395,7 +395,6 @@ def adicionar_url_imagens(id):
 
 
 @admin_bp.route('/produtos/<int:id>/reordenar-imagens', methods=['POST'])
-@admin_required
 def reordenar_imagens(id):
     """Reordenar imagens de um produto (upload + URL)."""
     produto = Product.query.get_or_404(id)
@@ -704,6 +703,25 @@ def enviar_email_cupom(id):
     enviar_cupom_usuarios(cupom, usuarios)
 
     return jsonify({'enviado': len(usuarios), 'mensagem': f'Email enviado para {len(usuarios)} usuário(s).'})
+
+
+# ==================== FRETE ====================
+
+@admin_bp.route('/frete', methods=['GET', 'POST'])
+def config_frete():
+    """Configurar frete local e frete grátis."""
+    from app.models import ConfigFrete
+    config = ConfigFrete.get()
+    if request.method == 'POST':
+        config.local_valor        = float(request.form.get('local_valor') or 15)
+        local_gratis              = (request.form.get('local_gratis_acima') or '').strip()
+        config.local_gratis_acima = float(local_gratis) if local_gratis else None
+        fora_gratis               = (request.form.get('fora_gratis_acima') or '').strip()
+        config.fora_gratis_acima  = float(fora_gratis) if fora_gratis else None
+        db.session.commit()
+        flash('Configurações de frete salvas!', 'success')
+        return redirect(url_for('admin.config_frete'))
+    return render_template('admin/frete.html', config=config)
 
 
 # ==================== USUÁRIOS ====================

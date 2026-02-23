@@ -247,14 +247,38 @@ def aplicar_cupom():
 
 @cart_bp.route('/calcular-frete', methods=['POST'])
 def calcular_frete():
-    """Calcula opções de frete via Melhor Envio (AJAX)."""
-    from app.blueprints.cart.frete_service import calcular_frete as calc
-    data = request.get_json() or {}
-    cep = data.get('cep', '').replace('-', '')
-    qtd = int(data.get('qtd', 1))
+    """Calcula opções de frete (local ou Melhor Envio) com suporte a frete grátis (AJAX)."""
+    from app.blueprints.cart.frete_service import (
+        calcular_frete as calc_api,
+        is_salvador_lf, calcular_frete_local,
+    )
+    from app.models import ConfigFrete
+    data     = request.get_json() or {}
+    cep      = data.get('cep', '').replace('-', '')
+    qtd      = int(data.get('qtd', 1))
+    subtotal = float(data.get('subtotal', 0))
+    cidade   = data.get('cidade', '')
+    estado   = data.get('estado', '')
+
     if len(cep) != 8:
         return jsonify(erro='CEP inválido'), 400
-    opcoes = calc(cep, qtd)
+
+    if is_salvador_lf(cidade, estado):
+        opcoes = calcular_frete_local(subtotal)
+    else:
+        opcoes = calc_api(cep, qtd)
+        # Se subtotal atingir limiar, substituir todas as opções por "Frete Grátis"
+        if opcoes:
+            config = ConfigFrete.get()
+            if config.fora_gratis_acima is not None and subtotal >= config.fora_gratis_acima:
+                opcoes = [{
+                    'id':             'Frete Grátis',
+                    'nome':           'Grátis',
+                    'transportadora': '',
+                    'preco':          0.0,
+                    'prazo':          '',
+                }]
+
     if not opcoes:
         return jsonify(erro='Não foi possível calcular o frete para este CEP'), 503
     return jsonify(opcoes=opcoes)
@@ -458,7 +482,7 @@ def webhook_mercadopago():
 
         logger.info(f'[WEBHOOK MP] topic={topic}, data_id={data_id}')
 
-        if not data_id or topic not in ('payment', 'merchant_order'):
+        if not data_id or topic != 'payment':
             return jsonify(status='ignored'), 200
 
         resultado = mercadopago_service.consultar_pagamento_por_id(str(data_id))
@@ -478,6 +502,10 @@ def webhook_mercadopago():
 
             pedido.status = 'pago'
             pedido.mercadopago_payment_id = resultado['payment_id']
+
+            # Limpar carrinho do usuário autenticado
+            if pedido.user_id:
+                CartItem.query.filter_by(user_id=pedido.user_id).delete()
 
             # Incrementar uso do cupom
             if pedido.cupom_codigo:

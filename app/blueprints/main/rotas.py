@@ -1,12 +1,16 @@
 """Rotas do blueprint principal."""
 
+import logging
+
 from flask import render_template, send_file, abort, flash, redirect, url_for
 from flask_login import login_required, current_user
 from io import BytesIO
 from app.blueprints.main import main_bp
-from app.models import Category, Product, ProductImage, Order, Wishlist
+from app.models import CartItem, Category, Cupom, Product, ProductImage, Order, Wishlist
 from app.forms import EditarPerfilForm
 from app import db
+
+logger = logging.getLogger(__name__)
 
 
 @main_bp.route('/')
@@ -21,7 +25,37 @@ def home():
 @login_required
 def meus_pedidos():
     """Lista de pedidos do usuário logado."""
+    from app.blueprints.cart import mercadopago_service
+
     pedidos = Order.query.filter_by(user_id=current_user.id).order_by(Order.criado_em.desc()).all()
+
+    # Reconciliação lazy: confirmar pagamentos pendentes consultando o MP
+    for pedido in pedidos:
+        if pedido.status == 'aguardando_pagamento' and pedido.mercadopago_preference_id:
+            try:
+                resultado = mercadopago_service.consultar_pagamento(pedido.mercadopago_preference_id)
+                if resultado and resultado['status'] == 'approved' and resultado.get('payment_id'):
+                    for item in pedido.items:
+                        if item.variant:
+                            item.variant.estoque -= item.quantidade
+                        else:
+                            item.product.estoque -= item.quantidade
+                    pedido.status = 'pago'
+                    pedido.mercadopago_payment_id = resultado['payment_id']
+                    CartItem.query.filter_by(user_id=current_user.id).delete()
+                    if pedido.cupom_codigo:
+                        cupom = Cupom.query.filter_by(codigo=pedido.cupom_codigo).first()
+                        if cupom:
+                            cupom.usos_atuais += 1
+                    db.session.commit()
+                    try:
+                        from app.blueprints.cart.email_pedido_service import enviar_email_pedido_confirmado
+                        enviar_email_pedido_confirmado(pedido)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning('[PEDIDOS] Erro ao verificar pedido #%s: %s', pedido.id, e)
+
     return render_template('conta/pedidos.html', pedidos=pedidos)
 
 

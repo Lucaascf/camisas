@@ -200,9 +200,12 @@
 {% endblock %}
 
 {% block scripts %}
+{% set ns = namespace(sub=0) %}
+{% for item in itens %}{% set ns.sub = ns.sub + item.product.preco_final * item.quantidade %}{% endfor %}
 <script>
 (function() {
     const SUBTOTAL = {{ total }};
+    const subtotalBase = {{ ns.sub }};
     let freteAtual = 0;
     let descontoAtual = 0;
     let pctDescontoAtual = 0;
@@ -287,7 +290,13 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrf || ''
             },
-            body: JSON.stringify({cep: cep, qtd: qtd})
+            body: JSON.stringify({
+                cep:      cep,
+                qtd:      qtd,
+                subtotal: subtotalBase,
+                cidade:   document.getElementById('cidade').value,
+                estado:   document.getElementById('estado').value,
+            })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -309,6 +318,14 @@
     function renderFrete(opcoes) {
         const container = document.getElementById('frete-opcoes');
         container.innerHTML = opcoes.map(function(op, i) {
+            if (op.preco === 0) {
+                return '<label class="checkout__frete-option">' +
+                    '<input type="radio" name="frete_radio" value="' + op.id + '"' +
+                    ' data-preco="0" data-nome="' + op.id + '" checked>' +
+                    '<span class="checkout__frete-info"><strong style="color:#16a34a">Frete Grátis</strong></span>' +
+                    '<span class="checkout__frete-preco" style="color:#16a34a"><strong>Grátis</strong></span>' +
+                    '</label>';
+            }
             return '<label class="checkout__frete-option">' +
                 '<input type="radio" name="frete_radio" value="' + op.id + '"' +
                 ' data-preco="' + op.preco + '" data-nome="' + op.id + '"' +
@@ -338,7 +355,7 @@
         document.getElementById('frete-resumo').style.display = 'flex';
         document.getElementById('frete-resumo-label').textContent = nome;
         document.getElementById('frete-resumo-valor').textContent =
-            'R$ ' + preco.toFixed(2).replace('.', ',');
+            preco === 0 ? 'Grátis' : 'R$ ' + preco.toFixed(2).replace('.', ',');
         atualizarTotal();
     }
 

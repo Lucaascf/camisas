@@ -329,3 +329,26 @@ class ProductImageURL(db.Model):
 
     def __repr__(self):
         return f'<ProductImageURL {self.url[:50]} for product {self.product_id}>'
+
+
+class ConfigFrete(db.Model):
+    """Configuração de frete da loja (singleton — id=1)."""
+    __tablename__ = 'config_frete'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Salvador / Lauro de Freitas
+    local_valor        = db.Column(db.Float, default=15.0)   # frete fixo em R$
+    local_gratis_acima = db.Column(db.Float, nullable=True)  # None = sem frete grátis
+
+    # Fora de Salvador/LF (Melhor Envio) — apenas limiar de grátis
+    fora_gratis_acima  = db.Column(db.Float, nullable=True)  # None = sem frete grátis
+
+    @classmethod
+    def get(cls):
+        config = cls.query.first()
+        if not config:
+            config = cls(id=1)
+            db.session.add(config)
+            db.session.commit()
+        return config

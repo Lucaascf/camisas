@@ -97,3 +97,27 @@ def calcular_frete(cep_destino: str, qtd_itens: int = 1) -> list:
 
     opcoes.sort(key=lambda x: x['preco'])
     return opcoes
+
+
+def is_salvador_lf(cidade: str, estado: str) -> bool:
+    """Retorna True se a cidade for Salvador ou Lauro de Freitas, BA."""
+    cidades_locais = {'salvador', 'lauro de freitas'}
+    return estado.upper() == 'BA' and cidade.lower().strip() in cidades_locais
+
+
+def calcular_frete_local(subtotal: float) -> list:
+    """Frete fixo para Salvador / Lauro de Freitas, grátis se subtotal >= limiar."""
+    from app.models import ConfigFrete
+    config = ConfigFrete.get()
+    eh_gratis = (
+        config.local_gratis_acima is not None
+        and subtotal >= config.local_gratis_acima
+    )
+    preco = 0.0 if eh_gratis else config.local_valor
+    return [{
+        'id':             'Entrega Local',
+        'nome':           'Entrega',
+        'transportadora': 'Entrega Local',
+        'preco':          preco,
+        'prazo':          '1–3 dias úteis',
+    }]
