@@ -352,3 +352,23 @@ class ConfigFrete(db.Model):
             db.session.add(config)
             db.session.commit()
         return config
+
+
+class EnderecoSalvo(db.Model):
+    """Endereço de entrega salvo pelo usuário."""
+
+    __tablename__ = 'endereco_salvo'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    apelido     = db.Column(db.String(50), nullable=True)
+    cep         = db.Column(db.String(9), nullable=False)
+    endereco    = db.Column(db.String(200), nullable=False)
+    numero      = db.Column(db.String(20), nullable=False)
+    complemento = db.Column(db.String(100), nullable=True)
+    bairro      = db.Column(db.String(100), nullable=False)
+    cidade      = db.Column(db.String(100), nullable=False)
+    estado      = db.Column(db.String(2), nullable=False)
+    criado_em   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref='enderecos_salvos', lazy=True)

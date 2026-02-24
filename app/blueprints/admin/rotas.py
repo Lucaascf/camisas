@@ -2,9 +2,7 @@
 
 import logging
 import re
-from flask import render_template, redirect, url_for, flash, request, abort, jsonify, current_app
-from flask_login import login_required, current_user
-from functools import wraps
+from flask import render_template, redirect, url_for, flash, request, session, jsonify, current_app
 
 from app import db
 from app.blueprints.admin import admin_bp
@@ -14,17 +12,33 @@ from app.models import Cupom, Product, Category, ProductImage, ProductImageURL, 
 logger = logging.getLogger(__name__)
 
 
-def admin_required(f):
-    """Decorator para verificar se usuário é admin."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            flash('Faça login para acessar o painel admin.', 'error')
-            return redirect(url_for('auth.login'))
-        if not current_user.admin:
-            abort(403)  # Forbidden
-        return f(*args, **kwargs)
-    return decorated_function
+@admin_bp.before_request
+def verificar_acesso_admin():
+    """Bloqueia todas as rotas admin exceto login/logout."""
+    if request.endpoint in ('admin.login_admin', 'admin.logout_admin'):
+        return
+    if not session.get('admin_autenticado'):
+        return redirect(url_for('admin.login_admin'))
+
+
+@admin_bp.route('/login', methods=['GET', 'POST'])
+def login_admin():
+    if session.get('admin_autenticado'):
+        return redirect(url_for('admin.dashboard'))
+    erro = None
+    if request.method == 'POST':
+        chave = request.form.get('chave', '')
+        if chave == current_app.config['ADMIN_ACCESS_KEY']:
+            session['admin_autenticado'] = True
+            return redirect(url_for('admin.dashboard'))
+        erro = 'Chave de acesso inválida.'
+    return render_template('admin/login.html', erro=erro)
+
+
+@admin_bp.route('/logout')
+def logout_admin():
+    session.pop('admin_autenticado', None)
+    return redirect(url_for('admin.login_admin'))
 
 
 @admin_bp.route('/')
@@ -119,7 +133,6 @@ def pedido_atualizar_status(id):
 
 
 @admin_bp.route('/pedidos/<int:id>/verificar-pagamento', methods=['POST'])
-@admin_required
 def pedido_verificar_pagamento(id):
     """Consulta o MP e confirma (ou cancela) um pedido manualmente."""
     from app.blueprints.cart import mercadopago_service
@@ -202,6 +215,15 @@ def novo_produto():
                         ordem=ordem
                     )
                     db.session.add(imagem)
+
+        # Processar URLs de imagens
+        urls = [u.strip() for u in request.form.getlist('urls') if u.strip()]
+        for idx, url in enumerate(urls):
+            db.session.add(ProductImageURL(
+                product_id=produto.id,
+                url=url,
+                ordem=idx
+            ))
 
         db.session.commit()
 

@@ -55,8 +55,8 @@
                 {% for produto in produtos %}
                 <tr class="{% if not produto.ativo %}admin-table__row--inactive{% endif %}">
                     <td>
-                        {% if produto.imagem_url %}
-                            <img src="{{ produto.imagem_url }}" alt="{{ produto.nome }}" class="admin-table__thumb">
+                        {% if produto.imagem_principal %}
+                            <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" class="admin-table__thumb">
                         {% else %}
                             <div class="admin-table__no-image">Sem imagem</div>
                         {% endif %}

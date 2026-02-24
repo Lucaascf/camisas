@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Admin - FERRATO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <style>
+        .admin-login {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f4f4f4;
+        }
+        .admin-login__box {
+            background: #fff;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 380px;
+        }
+        .admin-login__logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+        .admin-login__subtitle {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #8B8B8B;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 36px;
+        }
+        .admin-login__label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #1A1A1A;
+            margin-bottom: 8px;
+        }
+        .admin-login__input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .admin-login__input:focus {
+            border-color: #1f2937;
+        }
+        .admin-login__error {
+            margin-top: 10px;
+            font-size: 0.82rem;
+            color: #c0392b;
+        }
+        .admin-login__btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 13px;
+            background: #1f2937;
+            color: #fff;
+            border: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .admin-login__btn:hover {
+            background: #111827;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-login">
+        <div class="admin-login__box">
+            <div class="admin-login__logo">FERRATO</div>
+            <div class="admin-login__subtitle">Painel Administrativo</div>
+            <form method="POST" action="{{ url_for('admin.login_admin') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="admin-login__label" for="chave">Chave de acesso</label>
+                <input
+                    class="admin-login__input"
+                    type="password"
+                    id="chave"
+                    name="chave"
+                    autocomplete="current-password"
+                    autofocus
+                >
+                {% if erro %}
+                    <div class="admin-login__error">{{ erro }}</div>
+                {% endif %}
+                <button type="submit" class="admin-login__btn">Entrar</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

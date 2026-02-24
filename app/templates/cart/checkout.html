@@ -20,6 +20,30 @@
             <div class="checkout__form-wrapper">
                 <h1 class="checkout__title">Finalizar Compra</h1>
 
+                {% if current_user.is_authenticated and enderecos_salvos %}
+                <div class="checkout__saved-addresses">
+                    <h2 class="checkout__saved-title">Endereços Salvos</h2>
+                    <div class="checkout__saved-grid">
+                        {% for end in enderecos_salvos %}
+                        <button type="button" class="checkout__saved-card"
+                                data-cep="{{ end.cep }}"
+                                data-endereco="{{ end.endereco }}"
+                                data-numero="{{ end.numero }}"
+                                data-complemento="{{ end.complemento or '' }}"
+                                data-bairro="{{ end.bairro }}"
+                                data-cidade="{{ end.cidade }}"
+                                data-estado="{{ end.estado }}">
+                            <strong class="checkout__saved-card__label">{{ end.apelido or end.cep }}</strong>
+                            <span class="checkout__saved-card__detail">
+                                {{ end.endereco }}, {{ end.numero }}{% if end.complemento %} — {{ end.complemento }}{% endif %}
+                            </span>
+                            <span class="checkout__saved-card__detail">{{ end.bairro }}, {{ end.cidade }} — {{ end.estado }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 {% if not current_user.is_authenticated %}
                 <div class="checkout__guest-notice">
                     <p>Já tem uma conta? <a href="{{ url_for('auth.login', next=url_for('cart.checkout')) }}" class="checkout__login-link">Faça login</a></p>
@@ -127,6 +151,19 @@
                                 {% endif %}
                             </div>
                         </div>
+
+                        {% if current_user.is_authenticated %}
+                        <div class="checkout__save-address">
+                            <label class="checkout__save-label">
+                                <input type="checkbox" name="salvar_endereco" value="1" id="salvar_endereco_check">
+                                Salvar este endereço para próximas compras
+                            </label>
+                            <div id="apelido-wrap" style="display:none">
+                                <input type="text" name="apelido_endereco" class="checkout__input"
+                                       placeholder="Apelido (ex: Casa, Trabalho)" maxlength="50">
+                            </div>
+                        </div>
+                        {% endif %}
                     </fieldset>
 
                     <!-- Frete -->
@@ -407,6 +444,35 @@
                 value = '(' + value.substring(0, 2) + ') ' + value.substring(2);
             }
             e.target.value = value;
+        });
+    }
+
+    // ── Endereços salvos ──────────────────────────────────
+    document.querySelectorAll('.checkout__saved-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+            document.getElementById('cep').value         = card.dataset.cep;
+            document.getElementById('endereco').value    = card.dataset.endereco;
+            document.getElementById('numero').value      = card.dataset.numero;
+            document.getElementById('complemento').value = card.dataset.complemento;
+            document.getElementById('bairro').value      = card.dataset.bairro;
+            document.getElementById('cidade').value      = card.dataset.cidade;
+            document.getElementById('estado').value      = card.dataset.estado;
+
+            document.querySelectorAll('.checkout__saved-card').forEach(function(c) {
+                c.classList.remove('checkout__saved-card--active');
+            });
+            card.classList.add('checkout__saved-card--active');
+
+            var cepNum = card.dataset.cep.replace(/\D/g, '');
+            if (cepNum.length === 8) calcularFrete(cepNum);
+        });
+    });
+
+    // ── Toggle campo apelido ──────────────────────────────
+    var salvarCheck = document.getElementById('salvar_endereco_check');
+    if (salvarCheck) {
+        salvarCheck.addEventListener('change', function() {
+            document.getElementById('apelido-wrap').style.display = this.checked ? 'block' : 'none';
         });
     }
 })();

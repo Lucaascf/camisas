@@ -74,7 +74,7 @@
             <div class="product-detail__size-selector" style="margin: 24px 0;">
                 <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 12px; color: #1A1A1A;">Tamanho:</label>
                 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    {% for tamanho in ['P', 'M', 'G', 'GG', 'XG'] %}
+                    {% for tamanho in ['S', 'M', 'L', 'XL', 'XXL'] %}
                     {% set variante = produto.variantes|selectattr('tamanho', 'equalto', tamanho)|first %}
                     {% set disponivel = variante and variante.ativo and variante.estoque > 0 %}
                     <button class="size-btn"

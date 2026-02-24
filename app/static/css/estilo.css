@@ -2079,6 +2079,19 @@ h1, h2, h3, h4 {
     background: #C8A35F;
 }
 
+/* Endereços salvos */
+.checkout__saved-addresses { margin-bottom: 32px; }
+.checkout__saved-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 500; margin-bottom: 12px; }
+.checkout__saved-grid { display: flex; flex-direction: column; gap: 8px; }
+.checkout__saved-card { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border: 1px solid rgba(0,0,0,0.12); background: #fff; text-align: left; cursor: pointer; transition: border-color 0.2s; width: 100%; }
+.checkout__saved-card:hover { border-color: #1f2937; }
+.checkout__saved-card--active { border-color: #C8A35F; background: #fdf8f0; }
+.checkout__saved-card__label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.checkout__saved-card__detail { font-size: 13px; color: #8B8B8B; }
+.checkout__save-address { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.checkout__save-label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.checkout__save-address #apelido-wrap input { max-width: 240px; }
+
 /* Resumo do pedido */
 .checkout__summary {
     background: #fff;

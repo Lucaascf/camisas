@@ -27,6 +27,9 @@ class Config:
     MAIL_SUPPRESS_SEND = os.environ.get('FLASK_ENV') == 'development'
     TESTING = os.environ.get('FLASK_ENV') == 'development'
 
+    # Admin access key
+    ADMIN_ACCESS_KEY = os.environ.get('ADMIN_ACCESS_KEY', '')
+
     # Mercado Pago
     MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN')
     MERCADOPAGO_SANDBOX = os.environ.get('MERCADOPAGO_SANDBOX', 'false').lower() == 'true'

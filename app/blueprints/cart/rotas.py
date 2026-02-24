@@ -13,7 +13,7 @@ from app.blueprints.cart import cart_bp
 from app.blueprints.cart import mercadopago_service
 from app.blueprints.cart.email_pedido_service import enviar_email_pedido_confirmado
 from app.forms import CheckoutForm
-from app.models import CartItem, Cupom, Order, OrderItem, Product, ProductVariant
+from app.models import CartItem, Cupom, EnderecoSalvo, Order, OrderItem, Product, ProductVariant
 
 logger = logging.getLogger(__name__)
 
@@ -296,9 +296,13 @@ def checkout():
     form = CheckoutForm()
 
     # Pré-preencher dados do usuário se estiver logado
+    enderecos_salvos = []
     if current_user.is_authenticated and request.method == 'GET':
         form.nome.data = current_user.nome
         form.email.data = current_user.email
+        enderecos_salvos = EnderecoSalvo.query.filter_by(
+            user_id=current_user.id
+        ).order_by(EnderecoSalvo.criado_em.desc()).all()
 
     if form.validate_on_submit():
         # Calcular total
@@ -375,6 +379,28 @@ def checkout():
 
         db.session.commit()
 
+        # Salvar endereço (usuários autenticados)
+        if current_user.is_authenticated and request.form.get('salvar_endereco') == '1':
+            ja_existe = EnderecoSalvo.query.filter_by(
+                user_id=current_user.id,
+                cep=form.cep.data,
+                numero=form.numero.data
+            ).first()
+            if not ja_existe:
+                apelido = request.form.get('apelido_endereco', '').strip() or None
+                db.session.add(EnderecoSalvo(
+                    user_id=current_user.id,
+                    apelido=apelido,
+                    cep=form.cep.data,
+                    endereco=form.endereco.data,
+                    numero=form.numero.data,
+                    complemento=form.complemento.data or None,
+                    bairro=form.bairro.data,
+                    cidade=form.cidade.data,
+                    estado=form.estado.data,
+                ))
+                db.session.commit()
+
         # Criar preferência no Mercado Pago
         try:
             preference_id, init_point = mercadopago_service.criar_preferencia(pedido, itens)
@@ -396,7 +422,7 @@ def checkout():
     # Calcular total para exibição
     total = sum(item.product.preco_final * item.quantidade for item in itens)
 
-    return render_template('cart/checkout.html', form=form, itens=itens, total=total)
+    return render_template('cart/checkout.html', form=form, itens=itens, total=total, enderecos_salvos=enderecos_salvos)
 
 
 @cart_bp.route('/confirmacao/<int:order_id>')
