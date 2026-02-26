@@ -1218,6 +1218,12 @@ h1, h2, h3, h4 {
     line-height: 1.8;
     margin-bottom: 32px;
 }
+.product-detail__description p { margin-bottom: 12px; }
+.product-detail__description strong { font-weight: 600; color: #1A1A1A; }
+.product-detail__description em { font-style: italic; }
+.product-detail__description ul,
+.product-detail__description ol { padding-left: 20px; margin-bottom: 12px; }
+.product-detail__description li { margin-bottom: 4px; }
 
 .product-detail__stock {
     font-size: 12px;

@@ -30,7 +30,18 @@
 
                 <div class="admin-form__group">
                     {{ form.descricao.label(class_="admin-form__label") }}
-                    {{ form.descricao(class_="admin-form__textarea", rows=5, placeholder="Descrição detalhada do produto...") }}
+                    <div id="rte-toolbar" class="rte-toolbar">
+                        <button type="button" onclick="rteCmd('bold')" title="Negrito"><b>N</b></button>
+                        <button type="button" onclick="rteCmd('italic')" title="Itálico"><i>I</i></button>
+                        <button type="button" onclick="rteCmd('underline')" title="Sublinhado"><u>S</u></button>
+                        <span class="rte-separator"></span>
+                        <button type="button" onclick="rteCmd('insertOrderedList')" title="Lista numerada">1.</button>
+                        <button type="button" onclick="rteCmd('insertUnorderedList')" title="Lista com marcadores">•</button>
+                        <span class="rte-separator"></span>
+                        <button type="button" onclick="rteCmd('removeFormat')" title="Limpar formatação">✕</button>
+                    </div>
+                    <div id="rte-editor" class="rte-editor" contenteditable="true"></div>
+                    {{ form.descricao(id="descricao-hidden", style="display:none;") }}
                     {% if form.descricao.errors %}
                         <span class="admin-form__error">{{ form.descricao.errors[0] }}</span>
                     {% endif %}
@@ -271,6 +282,15 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+    .rte-toolbar { display:flex; gap:4px; align-items:center; padding:6px 8px; background:#f9fafb; border:1px solid #374151; border-bottom:none; }
+    .rte-toolbar button { padding:3px 10px; background:white; border:1px solid #d1d5db; cursor:pointer; font-size:13px; line-height:1.5; min-width:30px; font-family:'Inter',sans-serif; }
+    .rte-toolbar button:hover { background:#f3f4f6; border-color:#C8A35F; }
+    .rte-separator { width:1px; height:18px; background:#d1d5db; margin:0 4px; }
+    .rte-editor { min-height:120px; padding:10px 14px; border:1px solid #374151; background:white; font-family:'Inter',sans-serif; font-size:14px; color:#1f2937; line-height:1.6; outline:none; }
+    .rte-editor:focus { border-color:#C8A35F; }
+    .rte-editor ul, .rte-editor ol { padding-left:20px; margin:4px 0; }
+</style>
 <script>
     // Adicionar linha de URL de imagem
     function adicionarLinhaUrl() {
@@ -618,5 +638,29 @@
         });
     });
 })();
+</script>
+
+<script>
+    var rteEditor = document.getElementById('rte-editor');
+    var descricaoHidden = document.getElementById('descricao-hidden');
+
+    function syncToHidden() {
+        var html = rteEditor.innerHTML;
+        descricaoHidden.value = (html === '<br>' || html === '') ? '' : html;
+    }
+
+    function rteCmd(cmd) {
+        rteEditor.focus();
+        document.execCommand(cmd, false, null);
+        syncToHidden();
+    }
+
+    // Pre-popula com valor existente ao editar
+    if (descricaoHidden.value) {
+        rteEditor.innerHTML = descricaoHidden.value;
+    }
+
+    // Sincroniza em tempo real a cada tecla ou mudança de conteúdo
+    rteEditor.addEventListener('input', syncToHidden);
 </script>
 {% endblock %}

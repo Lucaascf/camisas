@@ -55,6 +55,8 @@
                     <th width="80">Imagem</th>
                     <th>Nome</th>
                     <th width="120">Categoria</th>
+                    <th width="120">Tecido</th>
+                    <th width="120">Marca</th>
                     <th width="100">Preço</th>
                     <th width="80">Estoque</th>
                     <th width="80">Status</th>
@@ -77,6 +79,8 @@
                         {% if produto.destaque %}<span class="admin-badge admin-badge--featured">Destaque</span>{% endif %}
                     </td>
                     <td>{{ produto.categoria.nome }}</td>
+                    <td>{{ produto.tecido.nome if produto.tecido else '—' }}</td>
+                    <td>{{ produto.marca.nome if produto.marca else '—' }}</td>
                     <td>
                         {% if produto.em_promocao %}
                             <span class="admin-price admin-price--old">R$ {{ "%.2f"|format(produto.preco) }}</span><br>

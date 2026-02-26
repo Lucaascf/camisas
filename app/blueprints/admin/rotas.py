@@ -361,6 +361,7 @@ def deletar_produto(id):
     Wishlist.query.filter_by(product_id=id).delete()
     ProductVariant.query.filter_by(product_id=id).delete()
     ProductImage.query.filter_by(product_id=id).delete()
+    ProductImageURL.query.filter_by(product_id=id).delete()
     db.session.delete(produto)
     db.session.commit()
 
