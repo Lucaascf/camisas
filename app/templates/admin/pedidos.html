@@ -75,5 +75,27 @@
             </tbody>
         </table>
     </div>
+
+    {% if paginacao.pages > 1 %}
+    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; padding: 24px 0;">
+        {% if paginacao.has_prev %}
+        <a href="{{ url_for('admin.pedidos', page=paginacao.prev_num, status=status_filtro) }}"
+           class="admin-btn admin-btn--small">&#8592; Anterior</a>
+        {% else %}
+        <span class="admin-btn admin-btn--small" style="opacity: 0.4; cursor: default;">&#8592; Anterior</span>
+        {% endif %}
+
+        <span style="font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #666;">
+            Página {{ paginacao.page }} de {{ paginacao.pages }}
+        </span>
+
+        {% if paginacao.has_next %}
+        <a href="{{ url_for('admin.pedidos', page=paginacao.next_num, status=status_filtro) }}"
+           class="admin-btn admin-btn--small">Próximo &#8594;</a>
+        {% else %}
+        <span class="admin-btn admin-btn--small" style="opacity: 0.4; cursor: default;">Próximo &#8594;</span>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

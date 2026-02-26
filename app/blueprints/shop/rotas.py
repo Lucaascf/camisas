@@ -2,8 +2,9 @@
 
 from flask import abort, jsonify, render_template, request
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
-from app import db
+from app import db, limiter
 from app.blueprints.shop import shop_bp
 from app.models import Category, Product, ProductVariant
 
@@ -53,7 +54,7 @@ def listagem(slug=None):
     else:
         query = Product.query.filter_by(ativo=True)
 
-    paginacao = query.order_by(Product.criado_em.desc()).paginate(
+    paginacao = query.options(joinedload(Product.variantes)).order_by(Product.criado_em.desc()).paginate(
         page=pagina, per_page=PRODUTOS_POR_PAGINA, error_out=False
     )
     produtos = paginacao.items
@@ -68,6 +69,7 @@ def listagem(slug=None):
 
 
 @shop_bp.route('/busca')
+@limiter.limit("30 per minute")
 def busca():
     """Busca de produtos por texto."""
     termo = request.args.get('q', '').strip()
@@ -84,7 +86,7 @@ def busca():
                 Product.descricao.ilike(like),
             )
         )
-        paginacao = query.order_by(Product.criado_em.desc()).paginate(
+        paginacao = query.options(joinedload(Product.variantes)).order_by(Product.criado_em.desc()).paginate(
             page=pagina, per_page=PRODUTOS_POR_PAGINA, error_out=False
         )
         produtos = paginacao.items
@@ -98,6 +100,7 @@ def busca():
 
 
 @shop_bp.route('/busca/json')
+@limiter.limit("30 per minute")
 def busca_json():
     """Busca de produtos — retorna JSON para live search."""
     termo = request.args.get('q', '').strip()

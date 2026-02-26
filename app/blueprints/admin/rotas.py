@@ -2,9 +2,11 @@
 
 import logging
 import re
+from urllib.parse import urlparse
+
 from flask import render_template, redirect, url_for, flash, request, session, jsonify, current_app
 
-from app import db
+from app import db, limiter
 from app.blueprints.admin import admin_bp
 from app.forms import ProductForm, CategoryForm
 from app.models import Cupom, Product, Category, ProductImage, ProductImageURL, ProductVariant, Order, User
@@ -22,16 +24,20 @@ def verificar_acesso_admin():
 
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login_admin():
     if session.get('admin_autenticado'):
         return redirect(url_for('admin.dashboard'))
     erro = None
     if request.method == 'POST':
         chave = request.form.get('chave', '')
-        if chave == current_app.config['ADMIN_ACCESS_KEY']:
+        admin_key = current_app.config.get('ADMIN_ACCESS_KEY', '')
+        if not admin_key or chave != admin_key:
+            erro = 'Chave de acesso inválida.'
+        else:
+            session.clear()
             session['admin_autenticado'] = True
             return redirect(url_for('admin.dashboard'))
-        erro = 'Chave de acesso inválida.'
     return render_template('admin/login.html', erro=erro)
 
 
@@ -65,9 +71,12 @@ def dashboard():
         Product.ativo == True
     ).distinct().all()
 
+    categorias = Category.query.order_by(Category.nome).all()
+
     return render_template(
         'admin/dashboard.html',
         produtos=produtos,
+        categorias=categorias,
         total_pedidos=total_pedidos,
         pedidos_pendentes=pedidos_pendentes,
         receita_total=receita_total,
@@ -78,13 +87,17 @@ def dashboard():
 
 @admin_bp.route('/pedidos')
 def pedidos():
-    """Listar todos os pedidos com filtro por status."""
+    """Listar todos os pedidos com filtro por status e paginação."""
     status_filtro = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
     query = Order.query.order_by(Order.criado_em.desc())
     if status_filtro:
         query = query.filter_by(status=status_filtro)
-    pedidos = query.all()
-    return render_template('admin/pedidos.html', pedidos=pedidos, status_filtro=status_filtro)
+    paginacao = query.paginate(page=page, per_page=25, error_out=False)
+    return render_template('admin/pedidos.html',
+                           pedidos=paginacao.items,
+                           paginacao=paginacao,
+                           status_filtro=status_filtro)
 
 
 @admin_bp.route('/pedidos/<int:id>')
@@ -167,7 +180,7 @@ def pedido_verificar_pagamento(id):
             flash('Pagamento ainda pendente no Mercado Pago.', 'info')
     except Exception as e:
         logger.error('ADMIN VERIFICAR PAGAMENTO: erro — %s', e)
-        flash(f'Erro ao consultar MP: {e}', 'error')
+        flash('Erro ao consultar pagamento. Tente novamente.', 'error')
 
     return redirect(url_for('admin.pedido_detalhe', id=id))
 
@@ -219,6 +232,10 @@ def novo_produto():
         # Processar URLs de imagens
         urls = [u.strip() for u in request.form.getlist('urls') if u.strip()]
         for idx, url in enumerate(urls):
+            parsed = urlparse(url)
+            if parsed.scheme not in ('http', 'https'):
+                flash(f'URL inválida ignorada: {url[:50]}', 'warning')
+                continue
             db.session.add(ProductImageURL(
                 product_id=produto.id,
                 url=url,
@@ -274,7 +291,6 @@ def editar_produto(id):
 
             for idx, arquivo in enumerate(arquivos):
                 if arquivo and arquivo.filename:
-                    print(f"DEBUG: Adicionando arquivo {idx}: {arquivo.filename}")
                     imagem = ProductImage(
                         product_id=produto.id,
                         filename=arquivo.filename,
@@ -290,7 +306,8 @@ def editar_produto(id):
         flash(f'Produto "{produto.nome}" atualizado com sucesso!', 'success')
         return redirect(url_for('admin.dashboard'))
 
-    return render_template('admin/produto_form.html', form=form, produto=produto)
+    cores_produto = sorted({v.cor for v in produto.variantes if v.cor})
+    return render_template('admin/produto_form.html', form=form, produto=produto, cores_produto=cores_produto)
 
 
 @admin_bp.route('/produtos/<int:id>/toggle-ativo', methods=['POST'])
@@ -395,6 +412,10 @@ def adicionar_url_imagens(id):
     for idx, url in enumerate(urls):
         url = url.strip()
         if url:
+            parsed = urlparse(url)
+            if parsed.scheme not in ('http', 'https'):
+                flash(f'URL inválida ignorada: {url[:50]}', 'warning')
+                continue
             imagem = ProductImageURL(
                 product_id=produto.id,
                 url=url,
@@ -441,6 +462,25 @@ def reordenar_imagens(id):
         return jsonify(sucesso=False, mensagem=str(e)), 500
 
 
+@admin_bp.route('/produtos/<int:prod_id>/imagens/<int:img_id>/cor', methods=['POST'])
+def definir_cor_imagem(prod_id, img_id):
+    """Definir a cor associada a uma imagem (upload ou URL)."""
+    dados = request.get_json() or {}
+    tipo = dados.get('tipo')
+    cor = dados.get('cor', '')
+    if tipo == 'upload':
+        img = ProductImage.query.get_or_404(img_id)
+    elif tipo == 'url':
+        img = ProductImageURL.query.get_or_404(img_id)
+    else:
+        return jsonify(sucesso=False, mensagem='Tipo inválido'), 400
+    if img.product_id != prod_id:
+        return jsonify(sucesso=False), 403
+    img.cor = cor
+    db.session.commit()
+    return jsonify(sucesso=True)
+
+
 @admin_bp.route('/imagem-url/<int:image_id>/deletar', methods=['POST'])
 def deletar_imagem_url(image_id):
     """Deletar uma imagem de produto por URL."""
@@ -457,7 +497,7 @@ def deletar_imagem_url(image_id):
 
 @admin_bp.route('/produtos/<int:id>/variantes', methods=['POST'])
 def salvar_variantes(id):
-    """Salvar/atualizar variantes (tamanhos) de um produto."""
+    """Salvar/atualizar variantes (tamanho + cor) de um produto."""
     produto = Product.query.get_or_404(id)
 
     dados = request.get_json()
@@ -469,32 +509,40 @@ def salvar_variantes(id):
 
     try:
         for v_data in variantes_dados:
-            tamanho = v_data.get('tamanho')
+            tamanho = v_data.get('tamanho') or ''
+            cor = v_data.get('cor') or ''
+            cor_hex = v_data.get('cor_hex') or ''
             ativo = v_data.get('ativo', False)
             estoque = v_data.get('estoque', 0)
             variant_id = v_data.get('id')
 
             if variant_id:
-                # Atualizar variante existente
+                # Atualizar variante existente por ID
                 variante = ProductVariant.query.get(variant_id)
                 if variante and variante.product_id == produto.id:
+                    variante.tamanho = tamanho
+                    variante.cor = cor
+                    variante.cor_hex = cor_hex
                     variante.ativo = ativo
                     variante.estoque = estoque if ativo else 0
                     variantes_criadas.append({
                         'id': variante.id,
                         'tamanho': variante.tamanho,
+                        'cor': variante.cor,
+                        'cor_hex': variante.cor_hex,
                         'estoque': variante.estoque,
                         'ativo': variante.ativo
                     })
             else:
-                # Buscar se já existe variante para esse tamanho
+                # Buscar variante existente pela combinação (product_id, tamanho, cor)
                 variante = ProductVariant.query.filter_by(
                     product_id=produto.id,
-                    tamanho=tamanho
+                    tamanho=tamanho,
+                    cor=cor
                 ).first()
 
                 if variante:
-                    # Atualizar existente
+                    variante.cor_hex = cor_hex
                     variante.ativo = ativo
                     variante.estoque = estoque if ativo else 0
                 else:
@@ -503,16 +551,20 @@ def salvar_variantes(id):
                         variante = ProductVariant(
                             product_id=produto.id,
                             tamanho=tamanho,
+                            cor=cor,
+                            cor_hex=cor_hex,
                             estoque=estoque,
                             ativo=True
                         )
                         db.session.add(variante)
-                        db.session.flush()  # Para obter o ID
+                        db.session.flush()
 
                 if variante:
                     variantes_criadas.append({
                         'id': variante.id,
                         'tamanho': variante.tamanho,
+                        'cor': variante.cor,
+                        'cor_hex': variante.cor_hex,
                         'estoque': variante.estoque,
                         'ativo': variante.ativo
                     })
@@ -528,6 +580,18 @@ def salvar_variantes(id):
     except Exception as e:
         db.session.rollback()
         return jsonify(sucesso=False, mensagem=str(e)), 500
+
+
+@admin_bp.route('/produtos/<int:prod_id>/variantes/<int:var_id>/desativar', methods=['POST'])
+def desativar_variante(prod_id, var_id):
+    """Desativar uma variante individual."""
+    variante = ProductVariant.query.get_or_404(var_id)
+    if variante.product_id != prod_id:
+        return jsonify(sucesso=False), 403
+    variante.ativo = False
+    variante.estoque = 0
+    db.session.commit()
+    return jsonify(sucesso=True)
 
 
 # ==================== CATEGORIAS ====================

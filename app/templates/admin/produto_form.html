@@ -70,32 +70,42 @@
 
                 {% if produto %}
                 <div class="admin-form__group" style="background: #FAFAFA; padding: 16px; margin-top: 24px; border-left: 4px solid #C8A35F;">
-                    <h3 class="admin-form__label" style="font-size: 14px; margin-bottom: 12px;">Tamanhos Disponíveis</h3>
-                    <p style="font-size: 12px; color: #8B8B8B; margin-bottom: 12px;">⚠️ <strong>IMPORTANTE:</strong> O estoque é gerenciado APENAS pelos tamanhos. Produtos sem tamanhos configurados aparecerão como "SEM ESTOQUE" no site.</p>
+                    <h3 class="admin-form__label" style="font-size: 14px; margin-bottom: 4px;">Variantes (Tamanho + Cor)</h3>
+                    <p style="font-size: 12px; color: #8B8B8B; margin-bottom: 12px;">
+                        Cada linha é uma combinação única de tamanho e cor. Produtos sem variantes ativas aparecem como "SEM ESTOQUE".
+                    </p>
                     <div id="variantes-container">
-                        {% for tamanho in ['S', 'M', 'L', 'XL', 'XXL'] %}
-                        {% set variante = produto.variantes|selectattr('tamanho', 'equalto', tamanho)|first %}
-                        <div class="variant-row" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 12px; background: white; border: 1px solid #E5E5E5;">
-                            <label style="min-width: 30px; font-weight: 500;">{{ tamanho }}</label>
-                            <input type="checkbox"
-                                   class="variant-active-checkbox"
-                                   data-tamanho="{{ tamanho }}"
-                                   data-variant-id="{{ variante.id if variante else '' }}"
-                                   {% if variante and variante.ativo %}checked{% endif %}
-                                   style="width: 20px; height: 20px;">
-                            <input type="number"
-                                   class="variant-stock-input admin-form__input"
-                                   data-tamanho="{{ tamanho }}"
-                                   placeholder="Estoque"
-                                   value="{{ variante.estoque if variante else 0 }}"
-                                   min="0"
-                                   {% if not variante or not variante.ativo %}disabled{% endif %}
-                                   style="flex: 1; max-width: 150px; padding: 8px;">
-                            <span class="variant-status" style="font-size: 12px; color: #8B8B8B;">
-                                {% if variante and variante.ativo %}Ativo{% else %}Inativo{% endif %}
-                            </span>
+                        {% for v in produto.variantes %}
+                        <div class="variant-row" data-variant-id="{{ v.id }}"
+                             style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:10px;background:white;border:1px solid #E5E5E5;flex-wrap:wrap;">
+                            <input type="color" class="v-cor-hex"
+                                   value="{{ v.cor_hex if v.cor_hex else '#1A1A1A' }}"
+                                   style="width:32px;height:32px;padding:2px;border:1px solid #ccc;cursor:pointer;{% if not v.cor %}visibility:hidden;{% endif %}">
+                            <input type="text" class="v-cor-nome admin-form__input" placeholder="Cor (opcional)"
+                                   value="{{ v.cor }}" style="width:130px;">
+                            <select class="v-tamanho admin-form__select" style="width:80px;">
+                                <option value="">—</option>
+                                {% for t in ['PP','P','M','G','GG','XG','XXL'] %}
+                                <option value="{{ t }}" {% if v.tamanho == t %}selected{% endif %}>{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="number" class="v-estoque admin-form__input" value="{{ v.estoque }}"
+                                   min="0" placeholder="Estoque" style="width:80px;"
+                                   {% if not v.ativo %}disabled{% endif %}>
+                            <label style="display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap;">
+                                <input type="checkbox" class="v-ativo" {% if v.ativo %}checked{% endif %}>
+                                Ativo
+                            </label>
+                            <button type="button" onclick="removerVariante(this)"
+                                    class="admin-btn admin-btn--small admin-btn--danger"
+                                    style="padding:4px 10px;line-height:1;">×</button>
                         </div>
                         {% endfor %}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+                        <button type="button" onclick="adicionarVariante()"
+                                class="admin-btn admin-btn--secondary admin-btn--small">+ Adicionar Variante</button>
+                        <span id="variant-save-status" style="font-size:12px;color:#8B8B8B;"></span>
                     </div>
                 </div>
                 {% endif %}
@@ -197,6 +207,16 @@
                     <div class="img-card__handle">⠿</div>
                     <img src="{{ url_for('main.servir_imagem', image_id=imagem.id) }}" alt="{{ imagem.filename }}" style="width:100%;height:120px;object-fit:cover;" draggable="false">
                     <p class="img-card__label">{{ imagem.filename }}</p>
+                    {% if cores_produto %}
+                    <select class="img-cor-select" data-img-id="{{ imagem.id }}" data-img-type="upload"
+                            onchange="definirCorImagem(this)"
+                            style="width:100%;font-size:11px;margin-top:4px;padding:2px;">
+                        <option value="">— todas as cores —</option>
+                        {% for cor in cores_produto %}
+                        <option value="{{ cor }}" {% if imagem.cor == cor %}selected{% endif %}>{{ cor }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
                     <form method="POST" action="{{ url_for('admin.deletar_imagem', image_id=imagem.id) }}" onsubmit="return confirm('Confirma a exclusão desta imagem?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="admin-btn admin-btn--small admin-btn--danger">Remover</button>
@@ -208,6 +228,16 @@
                     <div class="img-card__handle">⠿</div>
                     <img src="{{ img.url }}" alt="URL imagem" style="width:100%;height:120px;object-fit:cover;" onerror="this.style.background='#F3F4F6';" draggable="false">
                     <p class="img-card__label" title="{{ img.url }}">{{ img.url }}</p>
+                    {% if cores_produto %}
+                    <select class="img-cor-select" data-img-id="{{ img.id }}" data-img-type="url"
+                            onchange="definirCorImagem(this)"
+                            style="width:100%;font-size:11px;margin-top:4px;padding:2px;">
+                        <option value="">— todas as cores —</option>
+                        {% for cor in cores_produto %}
+                        <option value="{{ cor }}" {% if img.cor == cor %}selected{% endif %}>{{ cor }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
                     <form method="POST" action="{{ url_for('admin.deletar_imagem_url', image_id=img.id) }}" onsubmit="return confirm('Confirma a exclusão desta URL?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="admin-btn admin-btn--small admin-btn--danger">Remover</button>
@@ -275,62 +305,138 @@
         });
     }
 
-    // Gerenciamento de variantes (tamanhos) — salva automaticamente
-    const variantCheckboxes = document.querySelectorAll('.variant-active-checkbox');
-    const produtoId = {{ produto.id if produto else 0 }};
+    // Gerenciamento de variantes (tamanho + cor) — salva automaticamente
+    var produtoId = {{ produto.id if produto else 0 }};
+    var variantDebounce;
+
+    function setVariantStatus(msg, color) {
+        var el = document.getElementById('variant-save-status');
+        if (el) { el.textContent = msg; el.style.color = color || '#8B8B8B'; }
+    }
+
+    function coletarVariantes() {
+        var variantes = [];
+        document.querySelectorAll('#variantes-container .variant-row').forEach(function(row) {
+            var vid = row.dataset.variantId || null;
+            var tamanho = row.querySelector('.v-tamanho').value;
+            var cor = row.querySelector('.v-cor-nome').value.trim();
+            var cor_hex = cor ? row.querySelector('.v-cor-hex').value : '';
+            var ativo = row.querySelector('.v-ativo').checked;
+            var estoque = parseInt(row.querySelector('.v-estoque').value) || 0;
+            variantes.push({ id: vid ? parseInt(vid) : null, tamanho: tamanho, cor: cor, cor_hex: cor_hex, ativo: ativo, estoque: estoque });
+        });
+        return variantes;
+    }
 
     function salvarVariantes() {
         if (!produtoId) return;
-        const variantes = [];
-        variantCheckboxes.forEach(function(checkbox) {
-            const tamanho = checkbox.dataset.tamanho;
-            const stockInput = document.querySelector('.variant-stock-input[data-tamanho="' + tamanho + '"]');
-            variantes.push({
-                id: checkbox.dataset.variantId || null,
-                tamanho: tamanho,
-                ativo: checkbox.checked,
-                estoque: parseInt(stockInput.value) || 0
-            });
-        });
+        setVariantStatus('Salvando…', '#8B8B8B');
         fetch('/admin/produtos/' + produtoId + '/variantes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-            body: JSON.stringify({ variantes: variantes })
+            body: JSON.stringify({ variantes: coletarVariantes() })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (data.sucesso && data.variantes) {
-                data.variantes.forEach(function(v) {
-                    const cb = document.querySelector('.variant-active-checkbox[data-tamanho="' + v.tamanho + '"]');
-                    if (cb) cb.dataset.variantId = v.id;
-                });
+            if (data.sucesso) {
+                setVariantStatus('Salvo ✓', '#16a34a');
+                // Atualizar data-variant-id nas linhas que foram criadas (id era null)
+                if (data.variantes) {
+                    var rows = document.querySelectorAll('#variantes-container .variant-row');
+                    var idx = 0;
+                    rows.forEach(function(row) {
+                        if (!row.dataset.variantId && data.variantes[idx]) {
+                            row.dataset.variantId = data.variantes[idx].id;
+                        }
+                        idx++;
+                    });
+                }
+                setTimeout(function() { setVariantStatus('', '#8B8B8B'); }, 2500);
+            } else {
+                setVariantStatus('Erro: ' + (data.mensagem || ''), '#dc2626');
             }
+        })
+        .catch(function() { setVariantStatus('Erro ao salvar', '#dc2626'); });
+    }
+
+    function agendarSalvar() {
+        clearTimeout(variantDebounce);
+        variantDebounce = setTimeout(salvarVariantes, 400);
+    }
+
+    function vincularEventosVariante(row) {
+        var corNome = row.querySelector('.v-cor-nome');
+        var corHex  = row.querySelector('.v-cor-hex');
+        var ativoChk = row.querySelector('.v-ativo');
+        var estoqueIn = row.querySelector('.v-estoque');
+
+        // Mostrar/ocultar color picker conforme cor digitada
+        corNome.addEventListener('input', function() {
+            corHex.style.visibility = this.value.trim() ? 'visible' : 'hidden';
+            agendarSalvar();
+        });
+        corHex.addEventListener('change', agendarSalvar);
+        row.querySelector('.v-tamanho').addEventListener('change', agendarSalvar);
+        estoqueIn.addEventListener('input', agendarSalvar);
+        ativoChk.addEventListener('change', function() {
+            estoqueIn.disabled = !this.checked;
+            agendarSalvar();
         });
     }
 
-    var variantDebounce;
-    variantCheckboxes.forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-            const tamanho = this.dataset.tamanho;
-            const stockInput = document.querySelector('.variant-stock-input[data-tamanho="' + tamanho + '"]');
-            const statusSpan = this.parentElement.querySelector('.variant-status');
-            if (this.checked) {
-                stockInput.disabled = false;
-                statusSpan.textContent = 'Ativo';
-            } else {
-                stockInput.disabled = true;
-                statusSpan.textContent = 'Inativo';
-            }
-            salvarVariantes();
-        });
-    });
+    // Vincular eventos nas linhas existentes
+    document.querySelectorAll('#variantes-container .variant-row').forEach(vincularEventosVariante);
 
-    document.querySelectorAll('.variant-stock-input').forEach(function(input) {
-        input.addEventListener('change', function() {
-            clearTimeout(variantDebounce);
-            variantDebounce = setTimeout(salvarVariantes, 400);
-        });
-    });
+    function adicionarVariante() {
+        var container = document.getElementById('variantes-container');
+        var div = document.createElement('div');
+        div.className = 'variant-row';
+        div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:10px;background:white;border:1px solid #E5E5E5;flex-wrap:wrap;';
+        div.innerHTML = '<input type="color" class="v-cor-hex" value="#1A1A1A" style="width:32px;height:32px;padding:2px;border:1px solid #ccc;cursor:pointer;visibility:hidden;">' +
+            '<input type="text" class="v-cor-nome admin-form__input" placeholder="Cor (opcional)" style="width:130px;">' +
+            '<select class="v-tamanho admin-form__select" style="width:80px;">' +
+            '<option value="">—</option>' +
+            ['PP','P','M','G','GG','XG','XXL'].map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('') +
+            '</select>' +
+            '<input type="number" class="v-estoque admin-form__input" value="0" min="0" placeholder="Estoque" style="width:80px;">' +
+            '<label style="display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap;">' +
+            '<input type="checkbox" class="v-ativo" checked> Ativo</label>' +
+            '<button type="button" onclick="removerVariante(this)" class="admin-btn admin-btn--small admin-btn--danger" style="padding:4px 10px;line-height:1;">×</button>';
+        container.appendChild(div);
+        vincularEventosVariante(div);
+        div.querySelector('.v-cor-nome').focus();
+    }
+
+    function definirCorImagem(select) {
+        var imgId = select.dataset.imgId;
+        var imgType = select.dataset.imgType;
+        var cor = select.value;
+        if (!produtoId) return;
+        fetch('/admin/produtos/' + produtoId + '/imagens/' + imgId + '/cor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ tipo: imgType, cor: cor })
+        }).then(function(r) { return r.json(); })
+          .then(function(d) { if (!d.sucesso) alert('Erro ao salvar cor da imagem.'); });
+    }
+
+    function removerVariante(btn) {
+        var row = btn.closest('.variant-row');
+        var vid = row.dataset.variantId;
+        if (vid) {
+            fetch('/admin/produtos/' + produtoId + '/variantes/' + vid + '/desativar', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.sucesso) row.remove();
+                else alert('Erro ao remover variante.');
+            });
+        } else {
+            row.remove();
+        }
+    }
 </script>
 
 <style>

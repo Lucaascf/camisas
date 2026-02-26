@@ -25,7 +25,15 @@
                     <p class="cart__item-category">
                         {{ item.product.categoria.nome }}
                         {% if item.variant %}
-                            <span style="color: #1A1A1A; font-weight: 500;"> • Tamanho: {{ item.variant.tamanho }}</span>
+                            {% if item.variant.tamanho %}
+                                <span style="color: #1A1A1A; font-weight: 500;"> • {{ item.variant.tamanho }}</span>
+                            {% endif %}
+                            {% if item.variant.cor %}
+                                <span style="display:inline-flex;align-items:center;gap:4px;margin-left:4px;">
+                                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ item.variant.cor_hex or '#ccc' }};border:1px solid #ccc;"></span>
+                                    <span style="color:#1A1A1A;font-weight:500;">{{ item.variant.cor }}</span>
+                                </span>
+                            {% endif %}
                         {% endif %}
                     </p>
                     <p class="cart__item-price">R$ {{ "%.2f"|format(item.product.preco_final)|replace('.', ',') }}</p>

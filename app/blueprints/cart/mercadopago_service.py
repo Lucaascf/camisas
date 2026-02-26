@@ -1,5 +1,7 @@
 """Serviço de integração com Mercado Pago."""
 
+import hashlib
+import hmac
 import json
 import mercadopago
 from flask import current_app, url_for
@@ -11,6 +13,56 @@ def _get_sdk():
     if not token:
         raise ValueError('MERCADOPAGO_ACCESS_TOKEN não configurado')
     return mercadopago.SDK(token)
+
+
+def validar_assinatura_webhook(request) -> bool:
+    """
+    Valida a assinatura HMAC-SHA256 enviada pelo Mercado Pago no header x-signature.
+
+    Formato do header: ts=<timestamp>,v1=<hmac_sha256(ts + "." + data_id, secret)>
+
+    Retorna True se a assinatura for válida (ou se MERCADOPAGO_WEBHOOK_SECRET não estiver
+    configurado, para compatibilidade com modo desenvolvimento).
+    """
+    secret = current_app.config.get('MERCADOPAGO_WEBHOOK_SECRET', '')
+    if not secret:
+        return True  # modo dev: aceitar tudo
+
+    sig_header = request.headers.get('x-signature', '')
+    if not sig_header:
+        return False
+
+    # Extrair ts e v1 do header
+    ts = None
+    v1 = None
+    for part in sig_header.split(','):
+        part = part.strip()
+        if part.startswith('ts='):
+            ts = part[3:]
+        elif part.startswith('v1='):
+            v1 = part[3:]
+
+    if not ts or not v1:
+        return False
+
+    # data.id vem de query string ou corpo JSON
+    data = request.get_json(silent=True) or {}
+    data_id = (
+        request.args.get('data.id')
+        or request.args.get('id')
+        or (data.get('data') or {}).get('id')
+        or ''
+    )
+
+    # Payload assinado: ts + "." + data_id
+    manifest = f'{ts}.{data_id}'
+    expected = hmac.new(
+        secret.encode('utf-8'),
+        manifest.encode('utf-8'),
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(expected, v1)
 
 
 def criar_preferencia(pedido, itens):
@@ -108,9 +160,8 @@ def criar_preferencia(pedido, itens):
         preference_data['notification_url'] = f'{base_url}/cart/webhook/mercadopago'
 
     # Criar preferência no MP
-    current_app.logger.warning(f"[MP DIAGNÓSTICO] preference_data enviado:\n{json.dumps(preference_data, indent=2, ensure_ascii=False)}")
+    current_app.logger.info("[MP] Criando preferência para pedido %s", pedido.id)
     resultado = sdk.preference().create(preference_data)
-    current_app.logger.warning(f"[MP DIAGNÓSTICO] resultado completo:\n{json.dumps(resultado, indent=2, ensure_ascii=False)}")
 
     if resultado['status'] not in [200, 201]:
         raise Exception(f"Erro ao criar preferência no Mercado Pago: {resultado}")

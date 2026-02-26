@@ -5,3 +5,4 @@ Flask-WTF==1.2.2
 Flask-Mail==0.10.0
 python-dotenv==1.1.0
 mercadopago==2.2.3
+flask-limiter==4.1.1

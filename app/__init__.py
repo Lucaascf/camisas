@@ -6,7 +6,9 @@ load_dotenv()  # DEVE ser chamado ANTES de importar config
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from flask import Flask, has_request_context, session
+from flask import Flask, flash, has_request_context, redirect, render_template, request, session, url_for
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, current_user
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
@@ -20,6 +22,7 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Faça login para acessar esta página.'
 csrf = CSRFProtect()
 mail = Mail()
+limiter = Limiter(key_func=get_remote_address, default_limits=[], storage_uri="memory://")
 
 
 def criar_app(config_class=ConfigDesenvolvimento):
@@ -33,6 +36,7 @@ def criar_app(config_class=ConfigDesenvolvimento):
     login_manager.init_app(app)
     csrf.init_app(app)
     mail.init_app(app)
+    limiter.init_app(app)
 
     # --- Importar models e criar tabelas ---
     from app import models  # noqa: F401
@@ -98,5 +102,39 @@ def criar_app(config_class=ConfigDesenvolvimento):
             'nav_categories': Category.query.all(),
             'cart_item_count': cart_count,
         }
+
+    # --- Headers de segurança ---
+    @app.after_request
+    def security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self'; "
+            "frame-src https://www.mercadopago.com.br;"
+        )
+        return response
+
+    # --- Handlers de erro ---
+    @app.errorhandler(404)
+    def pagina_nao_encontrada(e):
+        return render_template('404.html'), 404
+
+    @app.errorhandler(500)
+    def erro_interno(e):
+        return render_template('500.html'), 500
+
+    @app.errorhandler(429)
+    def muitas_tentativas(e):
+        flash('Muitas tentativas. Aguarde um momento.', 'error')
+        return redirect(request.referrer or url_for('main.home')), 429
 
     return app

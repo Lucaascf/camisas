@@ -95,6 +95,7 @@
                                 {% if form.cep.errors %}
                                     <span class="checkout__error">{{ form.cep.errors[0] }}</span>
                                 {% endif %}
+                                <small id="cep-status" style="color:#888; font-size:12px;"></small>
                             </div>
                         </div>
 
@@ -343,6 +344,21 @@
                 document.getElementById('frete-erro').style.display = 'block';
                 return;
             }
+            // Fallback: preencher endereço com dados do servidor se ainda vazio
+            var end = data.endereco || {};
+            if (end.localidade && !document.getElementById('cidade').value) {
+                document.getElementById('endereco').value = end.logradouro || '';
+                document.getElementById('bairro').value   = end.bairro    || '';
+                document.getElementById('cidade').value   = end.localidade;
+                document.getElementById('estado').value   = end.uf        || '';
+                document.getElementById('numero').focus();
+            }
+            // Atualizar status: sumir se endereço foi preenchido
+            if (cepStatus) {
+                cepStatus.textContent = document.getElementById('cidade').value
+                    ? ''
+                    : 'CEP não encontrado. Preencha o endereço manualmente.';
+            }
             renderFrete(data.opcoes);
         })
         .catch(function() {
@@ -354,26 +370,51 @@
 
     function renderFrete(opcoes) {
         const container = document.getElementById('frete-opcoes');
-        container.innerHTML = opcoes.map(function(op, i) {
+        container.innerHTML = '';
+        opcoes.forEach(function(op, i) {
+            var label = document.createElement('label');
+            label.className = 'checkout__frete-option';
+
+            var input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'frete_radio';
+            input.value = op.id;
+            input.dataset.preco = op.preco;
+            input.dataset.nome = op.id;
+            if (op.preco === 0 || i === 0) input.checked = true;
+
+            var spanInfo = document.createElement('span');
+            spanInfo.className = 'checkout__frete-info';
+
+            var spanPreco = document.createElement('span');
+            spanPreco.className = 'checkout__frete-preco';
+
             if (op.preco === 0) {
-                return '<label class="checkout__frete-option">' +
-                    '<input type="radio" name="frete_radio" value="' + op.id + '"' +
-                    ' data-preco="0" data-nome="' + op.id + '" checked>' +
-                    '<span class="checkout__frete-info"><strong style="color:#16a34a">Frete Grátis</strong></span>' +
-                    '<span class="checkout__frete-preco" style="color:#16a34a"><strong>Grátis</strong></span>' +
-                    '</label>';
+                var strongGratis = document.createElement('strong');
+                strongGratis.style.color = '#16a34a';
+                strongGratis.textContent = 'Frete Grátis';
+                spanInfo.appendChild(strongGratis);
+                spanPreco.style.color = '#16a34a';
+                var strongGratisPreco = document.createElement('strong');
+                strongGratisPreco.textContent = 'Grátis';
+                spanPreco.appendChild(strongGratisPreco);
+            } else {
+                var strong = document.createElement('strong');
+                strong.textContent = op.transportadora;
+                spanInfo.appendChild(strong);
+                spanInfo.appendChild(document.createTextNode(' ' + op.nome));
+                var small = document.createElement('small');
+                small.className = 'checkout__frete-prazo';
+                small.textContent = op.prazo;
+                spanInfo.appendChild(small);
+                spanPreco.textContent = 'R$ ' + op.preco.toFixed(2).replace('.', ',');
             }
-            return '<label class="checkout__frete-option">' +
-                '<input type="radio" name="frete_radio" value="' + op.id + '"' +
-                ' data-preco="' + op.preco + '" data-nome="' + op.id + '"' +
-                (i === 0 ? ' checked' : '') + '>' +
-                '<span class="checkout__frete-info">' +
-                '<strong>' + op.transportadora + '</strong> ' + op.nome +
-                '<small class="checkout__frete-prazo">' + op.prazo + '</small>' +
-                '</span>' +
-                '<span class="checkout__frete-preco">R$ ' + op.preco.toFixed(2).replace('.', ',') + '</span>' +
-                '</label>';
-        }).join('');
+
+            label.appendChild(input);
+            label.appendChild(spanInfo);
+            label.appendChild(spanPreco);
+            container.appendChild(label);
+        });
 
         // Selecionar o primeiro por padrão
         selecionarFrete(opcoes[0].preco, opcoes[0].id);
@@ -398,6 +439,7 @@
 
     // ── Máscara de CEP ────────────────────────────────────
     const cepInput = document.getElementById('cep');
+    const cepStatus = document.getElementById('cep-status');
     if (cepInput) {
         cepInput.addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
@@ -406,26 +448,18 @@
                 value = value.substring(0, 5) + '-' + value.substring(5);
             }
             e.target.value = value;
+            // Limpar campos ao digitar novo CEP
+            document.getElementById('endereco').value = '';
+            document.getElementById('bairro').value   = '';
+            document.getElementById('cidade').value   = '';
+            document.getElementById('estado').value   = '';
+            if (cepStatus) cepStatus.textContent = '';
         });
 
         cepInput.addEventListener('blur', function(e) {
             const cep = e.target.value.replace(/\D/g, '');
             if (cep.length === 8) {
-                fetch('https://viacep.com.br/ws/' + cep + '/json/')
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (!data.erro) {
-                            document.getElementById('endereco').value = data.logradouro || '';
-                            document.getElementById('bairro').value   = data.bairro || '';
-                            document.getElementById('cidade').value   = data.localidade || '';
-                            document.getElementById('estado').value   = data.uf || '';
-                            document.getElementById('numero').focus();
-                        }
-                        calcularFrete(cep);
-                    })
-                    .catch(function() {
-                        calcularFrete(cep);
-                    });
+                calcularFrete(cep);
             }
         });
     }

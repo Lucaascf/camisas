@@ -127,11 +127,13 @@ class Product(db.Model):
 
 
 class ProductVariant(db.Model):
-    """Variante de produto (tamanho/cor)."""
+    """Variante de produto (tamanho + cor)."""
 
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    tamanho = db.Column(db.String(10), nullable=False)  # P, M, G, GG, XG
+    tamanho = db.Column(db.String(10), nullable=False, server_default='')
+    cor = db.Column(db.String(50), nullable=False, server_default='')
+    cor_hex = db.Column(db.String(7), nullable=False, server_default='')
     estoque = db.Column(db.Integer, default=0, nullable=False)
     ativo = db.Column(db.Boolean, default=True)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -139,11 +141,11 @@ class ProductVariant(db.Model):
     product = db.relationship('Product', backref='variantes', lazy=True)
 
     __table_args__ = (
-        db.UniqueConstraint('product_id', 'tamanho', name='uq_product_variant'),
+        db.UniqueConstraint('product_id', 'tamanho', 'cor', name='uq_product_variant'),
     )
 
     def __repr__(self):
-        return f'<ProductVariant {self.product_id} - {self.tamanho}>'
+        return f'<ProductVariant {self.product_id} - {self.tamanho} {self.cor}>'
 
 
 class CartItem(db.Model):
@@ -224,6 +226,7 @@ class OrderItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     variant_id = db.Column(db.Integer, db.ForeignKey('product_variant.id'), nullable=True)
     tamanho = db.Column(db.String(10), nullable=True)  # Snapshot do tamanho no momento da compra
+    cor = db.Column(db.String(50), nullable=True)      # Snapshot da cor no momento da compra
     quantidade = db.Column(db.Integer, nullable=False)
     preco_unitario = db.Column(db.Float, nullable=False)
 
@@ -298,6 +301,7 @@ class ProductImage(db.Model):
     mimetype = db.Column(db.String(50), nullable=False)
     data = db.Column(db.LargeBinary, nullable=False)
     ordem = db.Column(db.Integer, default=0)
+    cor = db.Column(db.String(50), nullable=False, server_default='')
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     product = db.relationship('Product', backref='imagens', lazy=True)
@@ -319,6 +323,7 @@ class ProductImageURL(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     url = db.Column(db.String(500), nullable=False)
     ordem = db.Column(db.Integer, default=0)
+    cor = db.Column(db.String(50), nullable=False, server_default='')
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     produto = db.relationship('Product', backref='imagens_url', lazy=True)

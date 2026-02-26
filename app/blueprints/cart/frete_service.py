@@ -99,6 +99,34 @@ def calcular_frete(cep_destino: str, qtd_itens: int = 1) -> list:
     return opcoes
 
 
+def dados_do_cep(cep: str) -> dict:
+    """Consulta ViaCEP e retorna dict com logradouro/bairro/localidade/uf. Retorna {} em erro."""
+    cep_clean = cep.replace('-', '').strip()
+    try:
+        r = requests.get(
+            f'https://viacep.com.br/ws/{cep_clean}/json/',
+            timeout=5,
+            headers={'User-Agent': 'FERRATO E-commerce (useferrato@gmail.com)'},
+        )
+        data = r.json()
+        if not data.get('erro'):
+            return {
+                'logradouro': data.get('logradouro', ''),
+                'bairro':     data.get('bairro', ''),
+                'localidade': data.get('localidade', ''),
+                'uf':         data.get('uf', ''),
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def cidade_do_cep(cep: str) -> tuple:
+    """Consulta ViaCEP e retorna (localidade, uf). Retorna ('', '') em caso de erro."""
+    d = dados_do_cep(cep)
+    return d.get('localidade', ''), d.get('uf', '')
+
+
 def is_salvador_lf(cidade: str, estado: str) -> bool:
     """Retorna True se a cidade for Salvador ou Lauro de Freitas, BA."""
     cidades_locais = {'salvador', 'lauro de freitas'}

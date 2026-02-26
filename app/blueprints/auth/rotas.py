@@ -1,15 +1,18 @@
 """Rotas de autenticação."""
 
+from urllib.parse import urlparse
+
 from flask import render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, current_user
 
-from app import db
+from app import db, limiter
 from app.blueprints.auth import auth_bp
 from app.forms import LoginForm, RegistroForm, RegistroEmailForm, VerificarEmailForm, EsqueceuSenhaForm, RedefinirSenhaForm
 from app.models import User, CartItem
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def login():
     """Página de login."""
     if current_user.is_authenticated:
@@ -27,7 +30,11 @@ def login():
 
             flash('Login realizado com sucesso!', 'success')
             next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('main.home'))
+            if next_page:
+                parsed = urlparse(next_page)
+                if parsed.scheme or parsed.netloc:
+                    next_page = None
+            return redirect(next_page or url_for('main.home'))
         else:
             flash('Email ou senha incorretos.', 'error')
 
@@ -77,6 +84,7 @@ def registro():
 
 
 @auth_bp.route('/verificar-email', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def verificar_email():
     """Página de registro - Etapa 2: Verificar Código."""
     if current_user.is_authenticated:
@@ -130,6 +138,7 @@ def verificar_email():
 
 
 @auth_bp.route('/reenviar-codigo', methods=['POST'])
+@limiter.limit("3 per 10 minutes")
 def reenviar_codigo():
     """Reenvia código de verificação."""
     from app.blueprints.auth.email_service import criar_token_verificacao, enviar_email_verificacao
@@ -169,6 +178,7 @@ def logout():
 
 
 @auth_bp.route('/esqueci-senha', methods=['GET', 'POST'])
+@limiter.limit("5 per 10 minutes")
 def esqueci_senha():
     """Solicitar redefinição de senha."""
     if current_user.is_authenticated:
@@ -197,6 +207,7 @@ def esqueci_senha():
 
 
 @auth_bp.route('/redefinir-senha/<token>', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def redefinir_senha(token):
     """Redefinir senha com token válido."""
     if current_user.is_authenticated:

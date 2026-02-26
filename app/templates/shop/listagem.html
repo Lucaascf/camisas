@@ -54,6 +54,19 @@
                 <div class="product-card__info">
                     <p class="product-card__category">{{ produto.categoria.nome }}</p>
                     <h3 class="product-card__name">{{ produto.nome }}</h3>
+                    {% if produto.variantes %}
+                    {% set ns = namespace(cores=[]) %}
+                    <div class="product-card__colors">
+                        {% for v in produto.variantes if v.ativo and v.cor %}
+                            {% if v.cor not in ns.cores %}
+                                {% set ns.cores = ns.cores + [v.cor] %}
+                                <span class="product-card__color-swatch"
+                                      style="background: {{ v.cor_hex or '#ccc' }};"
+                                      title="{{ v.cor }}"></span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     {% if produto.em_promocao %}
                     <p class="product-card__price">
                         <span class="product-card__price--old">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</span>

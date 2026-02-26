@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block titulo %}Página não encontrada — FERRATO{% endblock %}
+
+{% block conteudo %}
+<div style="text-align: center; padding: 120px 24px;">
+    <p style="font-family: 'Playfair Display', serif; font-size: 6rem; font-weight: 400; color: #1A1A1A; line-height: 1; margin: 0;">404</p>
+    <h1 style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 400; color: #1A1A1A; margin: 24px 0 12px;">Página não encontrada</h1>
+    <p style="font-family: 'Inter', sans-serif; font-size: 0.95rem; color: #8B8B8B; margin: 0 0 40px;">O endereço que você acessou não existe ou foi removido.</p>
+    <a href="{{ url_for('main.home') }}"
+       style="display: inline-block; background: #1f2937; color: #fff; font-family: 'Inter', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 14px 36px; text-decoration: none;">
+        Voltar à loja
+    </a>
+</div>
+{% endblock %}

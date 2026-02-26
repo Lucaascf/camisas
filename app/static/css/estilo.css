@@ -652,6 +652,24 @@ h1, h2, h3, h4 {
     color: #C8A35F;
 }
 
+.product-card__colors {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 6px 0 8px;
+    min-height: 16px;
+}
+
+.product-card__color-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    display: inline-block;
+    flex-shrink: 0;
+}
+
 /* ========== BANNER PROMOCIONAL ========== */
 .promo {
     position: relative;
@@ -1004,6 +1022,8 @@ h1, h2, h3, h4 {
 
 .product-detail__image {
     position: relative;
+    flex: 1;
+    min-width: 0;
     aspect-ratio: 3 / 4;
     overflow: hidden;
     background-color: #F0EFED;

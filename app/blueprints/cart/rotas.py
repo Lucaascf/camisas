@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from flask import flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
-from app import db, csrf
+from app import db, csrf, limiter
 from app.blueprints.cart import cart_bp
 from app.blueprints.cart import mercadopago_service
 from app.blueprints.cart.email_pedido_service import enviar_email_pedido_confirmado
@@ -218,11 +218,15 @@ def remover(item_id):
 
 @cart_bp.route('/aplicar-cupom', methods=['POST'])
 @csrf.exempt
+@limiter.limit("20 per minute")
 def aplicar_cupom():
     """Valida e aplica um cupom de desconto (AJAX)."""
     dados = request.get_json() or {}
     codigo = (dados.get('codigo') or '').strip().upper()
-    subtotal = float(dados.get('subtotal', 0))
+    try:
+        subtotal = max(0.0, float(dados.get('subtotal', 0)))
+    except (ValueError, TypeError):
+        return jsonify({'valido': False, 'mensagem': 'Dados inválidos.'}), 400
 
     cupom = Cupom.query.filter_by(codigo=codigo, ativo=True).first()
     agora = datetime.now(timezone.utc)
@@ -250,18 +254,27 @@ def calcular_frete():
     """Calcula opções de frete (local ou Melhor Envio) com suporte a frete grátis (AJAX)."""
     from app.blueprints.cart.frete_service import (
         calcular_frete as calc_api,
-        is_salvador_lf, calcular_frete_local,
+        is_salvador_lf, calcular_frete_local, dados_do_cep,
     )
     from app.models import ConfigFrete
     data     = request.get_json() or {}
     cep      = data.get('cep', '').replace('-', '')
-    qtd      = int(data.get('qtd', 1))
-    subtotal = float(data.get('subtotal', 0))
-    cidade   = data.get('cidade', '')
-    estado   = data.get('estado', '')
+    try:
+        qtd      = max(1, int(data.get('qtd', 1)))
+        subtotal = max(0.0, float(data.get('subtotal', 0)))
+    except (ValueError, TypeError):
+        return jsonify(erro='Dados inválidos'), 400
 
     if len(cep) != 8:
         return jsonify(erro='CEP inválido'), 400
+
+    # Detectar cidade/estado diretamente no backend (independente do cliente)
+    _dados = dados_do_cep(cep)
+    cidade = _dados.get('localidade', '')
+    estado = _dados.get('uf', '')
+    if not cidade:
+        cidade = data.get('cidade', '')
+        estado = data.get('estado', '')
 
     if is_salvador_lf(cidade, estado):
         opcoes = calcular_frete_local(subtotal)
@@ -281,7 +294,7 @@ def calcular_frete():
 
     if not opcoes:
         return jsonify(erro='Não foi possível calcular o frete para este CEP'), 503
-    return jsonify(opcoes=opcoes)
+    return jsonify(opcoes=opcoes, endereco=_dados)
 
 
 @cart_bp.route('/checkout', methods=['GET', 'POST'])
@@ -306,9 +319,46 @@ def checkout():
 
     if form.validate_on_submit():
         # Calcular total
-        subtotal    = sum(item.product.preco_final * item.quantidade for item in itens)
-        frete_valor = float(request.form.get('frete_valor') or 0)
-        frete_tipo  = request.form.get('frete_tipo', '')
+        subtotal   = sum(item.product.preco_final * item.quantidade for item in itens)
+        frete_tipo = request.form.get('frete_tipo', '')
+
+        # Recalcular frete no servidor (ignorar valor do form)
+        from app.blueprints.cart.frete_service import (
+            calcular_frete as calc_api,
+            is_salvador_lf, calcular_frete_local, cidade_do_cep,
+        )
+        from app.models import ConfigFrete
+
+        _cep = (form.cep.data or '').replace('-', '')
+        _qtd = sum(item.quantidade for item in itens)
+
+        # Detectar cidade/estado no backend para evitar dependência do cliente
+        _cidade, _estado = cidade_do_cep(_cep)
+        if not _cidade:
+            _cidade = form.cidade.data or ''
+            _estado = form.estado.data or ''
+
+        if is_salvador_lf(_cidade, _estado):
+            _opcoes_frete = calcular_frete_local(subtotal)
+        else:
+            _opcoes_frete = calc_api(_cep, _qtd)
+            if _opcoes_frete:
+                config = ConfigFrete.get()
+                if config.fora_gratis_acima is not None and subtotal >= config.fora_gratis_acima:
+                    _opcoes_frete = [{
+                        'id':             'Frete Grátis',
+                        'nome':           'Grátis',
+                        'transportadora': '',
+                        'preco':          0.0,
+                        'prazo':          '',
+                    }]
+
+        _opcao = next((o for o in (_opcoes_frete or []) if o['id'] == frete_tipo), None)
+        if _opcao is None:
+            flash('Opção de frete inválida. Por favor, recalcule o frete.', 'error')
+            return redirect(url_for('cart.checkout'))
+
+        frete_valor = float(_opcao['preco'])
 
         # Revalidar cupom no backend
         cupom_codigo_form = request.form.get('cupom_codigo', '').strip().upper()
@@ -372,12 +422,16 @@ def checkout():
                 product_id=item.product_id,
                 variant_id=item.variant_id,
                 tamanho=item.variant.tamanho if item.variant else None,
+                cor=item.variant.cor if item.variant else None,
                 quantidade=item.quantidade,
                 preco_unitario=item.product.preco_final
             )
             db.session.add(order_item)
 
         db.session.commit()
+
+        # Guardar na sessão para autorizar acesso à confirmação (visitantes anônimos)
+        session['ultimo_pedido_id'] = pedido.id
 
         # Salvar endereço (usuários autenticados)
         if current_user.is_authenticated and request.form.get('salvar_endereco') == '1':
@@ -434,6 +488,15 @@ def confirmacao(order_id):
         if pedido.user_id != current_user.id:
             flash('Pedido não encontrado.', 'error')
             return redirect(url_for('main.home'))
+    elif pedido.user_id is not None:
+        # Pedido pertence a um usuário cadastrado — exigir login
+        flash('Faça login para ver este pedido.', 'error')
+        return redirect(url_for('auth.login'))
+    else:
+        # Pedido anônimo — validar pelo order_id salvo na sessão
+        if pedido.id != session.get('ultimo_pedido_id'):
+            flash('Pedido não encontrado.', 'error')
+            return redirect(url_for('main.home'))
 
     # Webhook pode ter confirmado antes do usuário chegar — limpar carrinho se já pago
     if pedido.status == 'pago':
@@ -456,32 +519,44 @@ def confirmacao(order_id):
                 resultado = {'status': 'pending', 'payment_id': None}
 
             if resultado and resultado['status'] == 'approved':
-                for item in pedido.items:
-                    if item.variant:
-                        item.variant.estoque -= item.quantidade
-                    else:
-                        item.product.estoque -= item.quantidade
+                # Atualização atômica: só aplica se o pedido ainda está aguardando pagamento
+                resultado_update = db.session.execute(
+                    db.update(Order)
+                    .where(Order.id == pedido.id, Order.status == 'aguardando_pagamento')
+                    .values(status='pago', mercadopago_payment_id=resultado['payment_id'])
+                )
+                if resultado_update.rowcount == 0:
+                    # Já processado por outro request (webhook ou chamada paralela)
+                    db.session.refresh(pedido)
+                else:
+                    db.session.refresh(pedido)
+                    for item in pedido.items:
+                        if item.variant:
+                            item.variant.estoque -= item.quantidade
+                        else:
+                            item.product.estoque -= item.quantidade
 
-                if current_user.is_authenticated:
-                    CartItem.query.filter_by(user_id=current_user.id).delete()
-                elif 'cart_session_id' in session:
-                    CartItem.query.filter_by(session_id=session['cart_session_id']).delete()
+                    if current_user.is_authenticated:
+                        CartItem.query.filter_by(user_id=current_user.id).delete()
+                    elif 'cart_session_id' in session:
+                        CartItem.query.filter_by(session_id=session['cart_session_id']).delete()
 
-                pedido.status = 'pago'
-                pedido.mercadopago_payment_id = resultado['payment_id']
+                    # Incrementar uso do cupom (atômico para evitar race condition)
+                    if pedido.cupom_codigo:
+                        cupom_usado = Cupom.query.filter_by(codigo=pedido.cupom_codigo).first()
+                        if cupom_usado:
+                            db.session.execute(
+                                db.update(Cupom)
+                                .where(Cupom.id == cupom_usado.id)
+                                .values(usos_atuais=Cupom.usos_atuais + 1)
+                            )
 
-                # Incrementar uso do cupom
-                if pedido.cupom_codigo:
-                    cupom_usado = Cupom.query.filter_by(codigo=pedido.cupom_codigo).first()
-                    if cupom_usado:
-                        cupom_usado.usos_atuais += 1
+                    db.session.commit()
 
-                db.session.commit()
-
-                try:
-                    enviar_email_pedido_confirmado(pedido)
-                except Exception as e:
-                    logger.error("EMAIL PEDIDO: erro ao enviar confirmação — %s", e)
+                    try:
+                        enviar_email_pedido_confirmado(pedido)
+                    except Exception as e:
+                        logger.error("EMAIL PEDIDO: erro ao enviar confirmação — %s", e)
 
                 flash('Pagamento aprovado! Pedido confirmado com sucesso.', 'success')
 
@@ -501,6 +576,10 @@ def confirmacao(order_id):
 @csrf.exempt
 def webhook_mercadopago():
     """Recebe notificações do Mercado Pago e confirma pagamentos."""
+    if not mercadopago_service.validar_assinatura_webhook(request):
+        logger.warning('[WEBHOOK MP] Assinatura inválida — requisição rejeitada')
+        return jsonify(status='unauthorized'), 401
+
     try:
         data = request.get_json(silent=True) or {}
         topic = request.args.get('topic') or data.get('type', '')
@@ -533,11 +612,15 @@ def webhook_mercadopago():
             if pedido.user_id:
                 CartItem.query.filter_by(user_id=pedido.user_id).delete()
 
-            # Incrementar uso do cupom
+            # Incrementar uso do cupom (atômico para evitar race condition)
             if pedido.cupom_codigo:
                 cupom_usado = Cupom.query.filter_by(codigo=pedido.cupom_codigo).first()
                 if cupom_usado:
-                    cupom_usado.usos_atuais += 1
+                    db.session.execute(
+                        db.update(Cupom)
+                        .where(Cupom.id == cupom_usado.id)
+                        .values(usos_atuais=Cupom.usos_atuais + 1)
+                    )
 
             db.session.commit()
 

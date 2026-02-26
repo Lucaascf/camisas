@@ -38,6 +38,16 @@
         <a href="{{ url_for('admin.novo_produto') }}" class="admin-btn admin-btn--primary">+ Novo Produto</a>
     </div>
 
+    <div class="admin-category-tabs">
+        <button class="admin-tab active" data-filter="all">Todos ({{ produtos|length }})</button>
+        {% for cat in categorias %}
+            {% set count = produtos|selectattr('categoria_id', 'equalto', cat.id)|list|length %}
+            {% if count > 0 %}
+            <button class="admin-tab" data-filter="{{ cat.id }}">{{ cat.nome }} ({{ count }})</button>
+            {% endif %}
+        {% endfor %}
+    </div>
+
     <div class="admin-table-container">
         <table class="admin-table">
             <thead>
@@ -53,7 +63,7 @@
             </thead>
             <tbody>
                 {% for produto in produtos %}
-                <tr class="{% if not produto.ativo %}admin-table__row--inactive{% endif %}">
+                <tr data-categoria="{{ produto.categoria_id }}" class="{% if not produto.ativo %}admin-table__row--inactive{% endif %}">
                     <td>
                         {% if produto.imagem_principal %}
                             <img src="{{ produto.imagem_principal }}" alt="{{ produto.nome }}" class="admin-table__thumb">
@@ -100,4 +110,17 @@
         </table>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        const filter = this.dataset.filter;
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.style.display = (filter === 'all' || row.dataset.categoria === filter) ? '' : 'none';
+        });
+    });
+});
+</script>
 {% endblock %}

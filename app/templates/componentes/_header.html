@@ -141,13 +141,32 @@
                             ? 'R$ ' + p.preco_promocional.toFixed(2).replace('.', ',')
                             : 'R$ ' + p.preco.toFixed(2).replace('.', ',');
 
-                        a.innerHTML =
-                            (p.imagem ? '<img src="' + p.imagem + '" alt="" class="header__suggestion-img">' : '<div class="header__suggestion-img header__suggestion-img--empty"></div>') +
-                            '<span class="header__suggestion-info">' +
-                                '<span class="header__suggestion-name">' + p.nome + '</span>' +
-                                '<span class="header__suggestion-cat">' + p.categoria + '</span>' +
-                            '</span>' +
-                            '<span class="header__suggestion-price">' + precoTxt + '</span>';
+                        if (p.imagem) {
+                            var img = document.createElement('img');
+                            img.src = p.imagem;
+                            img.alt = '';
+                            img.className = 'header__suggestion-img';
+                            a.appendChild(img);
+                        } else {
+                            var imgPlaceholder = document.createElement('div');
+                            imgPlaceholder.className = 'header__suggestion-img header__suggestion-img--empty';
+                            a.appendChild(imgPlaceholder);
+                        }
+                        var info = document.createElement('span');
+                        info.className = 'header__suggestion-info';
+                        var nameEl = document.createElement('span');
+                        nameEl.className = 'header__suggestion-name';
+                        nameEl.textContent = p.nome;
+                        var catEl = document.createElement('span');
+                        catEl.className = 'header__suggestion-cat';
+                        catEl.textContent = p.categoria;
+                        info.appendChild(nameEl);
+                        info.appendChild(catEl);
+                        a.appendChild(info);
+                        var priceEl = document.createElement('span');
+                        priceEl.className = 'header__suggestion-price';
+                        priceEl.textContent = precoTxt;
+                        a.appendChild(priceEl);
                         suggestBox.appendChild(a);
                     });
                     if (data.total > 6) {

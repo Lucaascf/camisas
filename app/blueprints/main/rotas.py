@@ -114,6 +114,10 @@ def meu_perfil():
                 flash('Informe a nova senha.', 'error')
                 return render_template('conta/perfil.html', form=form)
             current_user.set_senha(form.nova_senha.data)
+            from app.models import PasswordResetToken
+            PasswordResetToken.query.filter_by(
+                email=current_user.email, usado=False
+            ).update({'usado': True})
 
         db.session.commit()
         flash('Perfil atualizado com sucesso.', 'success')
