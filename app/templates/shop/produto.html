@@ -82,8 +82,6 @@
                 </div>
             </div>
 
-            <div class="product-detail__description">{{ produto.descricao | safe }}</div>
-
             {% if produto.variantes %}
 
             {# Seletor de cor — renderizado via JS se houver cores #}
@@ -127,6 +125,8 @@
                 {% if produto.estoque_total == 0 %}Sem Estoque{% else %}Adicionar ao Carrinho{% endif %}
             </button>
             {% endif %}
+
+            <div class="product-detail__description" style="margin-top: 32px;">{{ produto.descricao | safe }}</div>
         </div>
     </section>
 
@@ -383,14 +383,11 @@ if (!temCores) {
                 return;
             }
             lista.innerHTML = '';
-            var exibir = parcelas.filter(function(p) { return p.parcelas <= 12; });
+            var exibir = parcelas.filter(function(p) { return p.parcelas === 2 || p.parcelas === 3 || p.parcelas === 6; });
             exibir.forEach(function(p) {
                 var li = document.createElement('li');
                 var valor = 'R$ ' + p.valor_parcela.toFixed(2).replace('.', ',');
-                var sufixo = p.sem_juros
-                    ? '<span class="price-box__sem-juros">sem juros</span>'
-                    : '<span class="price-box__com-juros">com juros (total R$ ' + p.total.toFixed(2).replace('.', ',') + ')</span>';
-                li.innerHTML = '<strong>' + p.parcelas + 'x</strong> de <strong>' + valor + '</strong>' + sufixo;
+                li.innerHTML = '<strong>' + p.parcelas + 'x</strong> de <strong>' + valor + '</strong>/mês';
                 lista.appendChild(li);
             });
         })
