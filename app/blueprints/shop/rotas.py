@@ -172,6 +172,20 @@ def busca_json():
     )
 
 
+@shop_bp.route('/parcelas')
+def parcelas():
+    """Retorna opções de parcelamento via API do MP (JSON)."""
+    from app.blueprints.cart.mercadopago_service import calcular_parcelas
+    try:
+        preco = float(request.args.get('preco', 0))
+    except (ValueError, TypeError):
+        return jsonify([])
+    if preco <= 0:
+        return jsonify([])
+    resultado = calcular_parcelas(preco)
+    return jsonify(resultado)
+
+
 @shop_bp.route('/produto/<slug>')
 def produto(slug):
     """Página de detalhe de um produto."""

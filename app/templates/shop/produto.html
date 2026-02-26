@@ -60,13 +60,26 @@
             <a href="{{ url_for('shop.listagem', slug=produto.categoria.slug) }}" class="product-detail__category">{{ produto.categoria.nome }}</a>
             <h1 class="product-detail__name">{{ produto.nome }}</h1>
 
-            <div class="product-detail__price">
+            <div class="product-detail__price-box">
                 {% if produto.em_promocao %}
-                <span class="product-detail__price--old">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</span>
-                <span class="product-detail__price--sale">R$ {{ "%.2f"|format(produto.preco_promocional)|replace('.', ',') }}</span>
+                <p class="price-box__original">De: <s>R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</s></p>
+                <p class="price-box__promo"><strong>R$ {{ "%.2f"|format(produto.preco_promocional)|replace('.', ',') }}</strong></p>
                 {% else %}
-                <span class="product-detail__price--current">R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</span>
+                <p class="price-box__promo"><strong>R$ {{ "%.2f"|format(produto.preco)|replace('.', ',') }}</strong></p>
                 {% endif %}
+
+                <div class="price-box__pix">
+                    <span class="price-box__pix-badge">PIX</span>
+                    <strong>R$ {{ "%.2f"|format(produto.preco_pix)|replace('.', ',') }}</strong>
+                    <span class="price-box__pix-economy">{{ "%.2f"|format(produto.preco_final - produto.preco_pix)|replace('.', ',') }} de economia (5%)</span>
+                </div>
+
+                <div class="price-box__installments">
+                    <p class="price-box__installments-label">Cartão de crédito:</p>
+                    <ul id="parcelas-lista" class="price-box__installments-list">
+                        <li class="price-box__installments-loading">Calculando parcelamento...</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="product-detail__description">{{ produto.descricao | safe }}</div>
@@ -120,6 +133,23 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+.product-detail__price-box { margin: 16px 0; }
+.price-box__original { color: #8B8B8B; font-size: 14px; margin: 0 0 4px; }
+.price-box__promo { margin: 0 0 12px; }
+.price-box__promo strong { font-size: 28px; font-weight: 700; color: #1A1A1A; }
+.price-box__pix { background: #F0FDF4; border: 1px solid #BBF7D0; padding: 10px 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.price-box__pix-badge { background: #22C55E; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; letter-spacing: 0.5px; }
+.price-box__pix strong { font-size: 22px; font-weight: 700; color: #15803D; }
+.price-box__pix-economy { font-size: 12px; color: #166534; }
+.price-box__installments { border-top: 1px solid #E5E7EB; padding-top: 10px; }
+.price-box__installments-label { font-size: 13px; color: #8B8B8B; margin: 0 0 6px; }
+.price-box__installments-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.price-box__installments-list li { font-size: 13px; color: #1A1A1A; }
+.price-box__installments-list li strong { font-weight: 700; }
+.price-box__sem-juros { color: #15803D; font-size: 11px; font-weight: 600; margin-left: 4px; }
+.price-box__com-juros { color: #8B8B8B; font-size: 11px; margin-left: 4px; }
+</style>
 <script>
 // Galeria com setas e thumbnails
 var galeriaUrls = [
@@ -339,6 +369,35 @@ if (!temCores) {
             btn.disabled = false;
         });
     });
+})();
+
+// Carregar parcelamento via API do MP
+(function() {
+    var preco = {{ produto.preco_final }};
+    fetch('/shop/parcelas?preco=' + preco)
+        .then(function(r) { return r.json(); })
+        .then(function(parcelas) {
+            var lista = document.getElementById('parcelas-lista');
+            if (!lista || !parcelas.length) {
+                if (lista) lista.innerHTML = '<li style="color:#8B8B8B">Indisponível no momento</li>';
+                return;
+            }
+            lista.innerHTML = '';
+            var exibir = parcelas.filter(function(p) { return p.parcelas <= 12; });
+            exibir.forEach(function(p) {
+                var li = document.createElement('li');
+                var valor = 'R$ ' + p.valor_parcela.toFixed(2).replace('.', ',');
+                var sufixo = p.sem_juros
+                    ? '<span class="price-box__sem-juros">sem juros</span>'
+                    : '<span class="price-box__com-juros">com juros (total R$ ' + p.total.toFixed(2).replace('.', ',') + ')</span>';
+                li.innerHTML = '<strong>' + p.parcelas + 'x</strong> de <strong>' + valor + '</strong>' + sufixo;
+                lista.appendChild(li);
+            });
+        })
+        .catch(function() {
+            var lista = document.getElementById('parcelas-lista');
+            if (lista) lista.innerHTML = '<li style="color:#8B8B8B">Indisponível no momento</li>';
+        });
 })();
 </script>
 {% endblock %}

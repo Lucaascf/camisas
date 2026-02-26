@@ -71,21 +71,33 @@
                     {% endif %}
                 </div>
 
-                <div class="admin-form__row">
-                    <div class="admin-form__group">
-                        {{ form.preco.label(class_="admin-form__label") }}
-                        {{ form.preco(class_="admin-form__input", placeholder="0.00") }}
-                        {% if form.preco.errors %}
-                            <span class="admin-form__error">{{ form.preco.errors[0] }}</span>
-                        {% endif %}
+                <div class="admin-form__group">
+                    <h3 class="admin-form__section-subtitle">Preços</h3>
+
+                    <div class="admin-form__row">
+                        <div class="admin-form__group">
+                            {{ form.preco.label(class_="admin-form__label") }}
+                            <small class="admin-form__help">Preço original de tabela</small>
+                            {{ form.preco(class_="admin-form__input", placeholder="0.00", id="campo-preco") }}
+                            {% if form.preco.errors %}
+                                <span class="admin-form__error">{{ form.preco.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="admin-form__group">
+                            {{ form.preco_promocional.label(class_="admin-form__label") }}
+                            <small class="admin-form__help">Deixe vazio se não houver promoção</small>
+                            {{ form.preco_promocional(class_="admin-form__input", placeholder="0.00 (opcional)", id="campo-promo") }}
+                            {% if form.preco_promocional.errors %}
+                                <span class="admin-form__error">{{ form.preco_promocional.errors[0] }}</span>
+                            {% endif %}
+                        </div>
                     </div>
 
-                    <div class="admin-form__group">
-                        {{ form.preco_promocional.label(class_="admin-form__label") }}
-                        {{ form.preco_promocional(class_="admin-form__input", placeholder="0.00 (opcional)") }}
-                        {% if form.preco_promocional.errors %}
-                            <span class="admin-form__error">{{ form.preco_promocional.errors[0] }}</span>
-                        {% endif %}
+                    <div id="pix-preview" style="background:#F0FDF4;border:1px solid #BBF7D0;padding:10px 14px;margin-top:8px;display:flex;align-items:center;gap:10px;">
+                        <span style="background:#22C55E;color:white;font-size:11px;font-weight:700;padding:2px 8px;">PIX</span>
+                        <strong id="pix-valor" style="color:#15803D;font-size:16px;">—</strong>
+                        <small style="color:#166534;">5% de desconto sobre o preço final</small>
                     </div>
                 </div>
             </div>
@@ -342,6 +354,25 @@
             }
         });
     }
+
+    // Preview do preço PIX no admin
+    (function() {
+        var campoPreco = document.getElementById('campo-preco');
+        var campoPromo = document.getElementById('campo-promo');
+        var pixValor = document.getElementById('pix-valor');
+        if (!campoPreco || !pixValor) return;
+
+        function atualizarPix() {
+            var preco = parseFloat(campoPreco.value) || 0;
+            var promo = campoPromo ? (parseFloat(campoPromo.value) || 0) : 0;
+            var final = promo > 0 && promo < preco ? promo : preco;
+            pixValor.textContent = final > 0 ? 'R$ ' + (final * 0.95).toFixed(2).replace('.', ',') : '—';
+        }
+
+        campoPreco.addEventListener('input', atualizarPix);
+        if (campoPromo) campoPromo.addEventListener('input', atualizarPix);
+        atualizarPix();
+    })();
 
     // Gerenciamento de variantes (tamanho + cor) — salva automaticamente
     var produtoId = {{ produto.id if produto else 0 }};

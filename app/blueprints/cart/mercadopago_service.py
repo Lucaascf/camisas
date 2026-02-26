@@ -174,6 +174,54 @@ def criar_preferencia(pedido, itens):
     return preference_id, init_point
 
 
+def calcular_parcelas(preco: float) -> list:
+    """
+    Consulta a API do Mercado Pago para obter opções de parcelamento.
+    Retorna lista de dicts: {parcelas, valor_parcela, total, sem_juros}
+    """
+    import requests
+    token = current_app.config.get('MERCADOPAGO_ACCESS_TOKEN', '')
+    if not token:
+        return []
+
+    try:
+        resp = requests.get(
+            'https://api.mercadopago.com/v1/payment_methods/installments',
+            params={
+                'payment_method_id': 'master',
+                'amount': str(round(preco, 2)),
+                'bin': '503143',  # BIN Mastercard representativo
+            },
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=5
+        )
+        if resp.status_code != 200:
+            return []
+
+        data = resp.json()
+        if not data:
+            return []
+
+        payer_costs = data[0].get('payer_costs', [])
+        parcelas = []
+        for pc in payer_costs:
+            n = pc.get('installments', 1)
+            valor = pc.get('installment_amount', preco)
+            total = pc.get('total_amount', preco)
+            sem_juros = pc.get('installment_rate', 0) == 0
+            parcelas.append({
+                'parcelas': n,
+                'valor_parcela': round(valor, 2),
+                'total': round(total, 2),
+                'sem_juros': sem_juros,
+            })
+        return parcelas
+
+    except Exception as e:
+        current_app.logger.warning(f'[MP] Erro ao calcular parcelas: {e}')
+        return []
+
+
 def consultar_pagamento_por_id(payment_id):
     """Busca pagamento direto pelo ID. Retorna status e order_id."""
     sdk = _get_sdk()

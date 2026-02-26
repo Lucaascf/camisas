@@ -88,6 +88,9 @@ class Tecido(db.Model):
         return f'<Tecido {self.nome}>'
 
 
+PIX_DESCONTO = 0.05  # 5% de desconto no PIX
+
+
 class Product(db.Model):
     """Produto (camisa)."""
 
@@ -110,6 +113,11 @@ class Product(db.Model):
     @property
     def preco_final(self):
         return self.preco_promocional if self.preco_promocional else self.preco
+
+    @property
+    def preco_pix(self):
+        """Preço com desconto PIX (5% sobre o preço final)."""
+        return round(self.preco_final * (1 - PIX_DESCONTO), 2)
 
     @property
     def em_promocao(self):
