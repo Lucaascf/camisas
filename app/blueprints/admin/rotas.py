@@ -6,12 +6,28 @@ from urllib.parse import urlparse
 
 from flask import render_template, redirect, url_for, flash, request, session, jsonify, current_app
 
+from sqlalchemy.exc import IntegrityError
+
 from app import db, limiter
 from app.blueprints.admin import admin_bp
-from app.forms import ProductForm, CategoryForm
-from app.models import Cupom, Product, Category, ProductImage, ProductImageURL, ProductVariant, Order, User
+from app.forms import ProductForm, CategoryForm, MarcaForm, TecidoForm
+from app.models import Cupom, Product, Category, Marca, Tecido, ProductImage, ProductImageURL, ProductVariant, Order, User, CartItem
 
 logger = logging.getLogger(__name__)
+
+
+def _slug_unico(model_cls, base_slug, exclude_id=None):
+    """Garante unicidade do slug adicionando sufixo numérico se necessário."""
+    slug = base_slug
+    counter = 2
+    while True:
+        q = model_cls.query.filter_by(slug=slug)
+        if exclude_id:
+            q = q.filter(model_cls.id != exclude_id)
+        if not q.first():
+            return slug
+        slug = f'{base_slug}-{counter}'
+        counter += 1
 
 
 @admin_bp.before_request
@@ -206,6 +222,8 @@ def novo_produto():
             preco_promocional=form.preco_promocional.data,
             imagem_url=form.imagem_url.data,
             categoria_id=form.categoria_id.data,
+            marca_id=form.marca_id.data if form.marca_id.data != 0 else None,
+            tecido_id=form.tecido_id.data if form.tecido_id.data != 0 else None,
             estoque=0,  # Estoque sempre gerenciado pelas variantes
             destaque=form.destaque.data,
             novo=form.novo.data,
@@ -278,6 +296,8 @@ def editar_produto(id):
         produto.preco_promocional = form.preco_promocional.data
         produto.imagem_url = form.imagem_url.data
         produto.categoria_id = form.categoria_id.data
+        produto.marca_id = form.marca_id.data if form.marca_id.data != 0 else None
+        produto.tecido_id = form.tecido_id.data if form.tecido_id.data != 0 else None
         produto.estoque = 0  # Estoque sempre gerenciado pelas variantes
         produto.destaque = form.destaque.data
         produto.novo = form.novo.data
@@ -508,66 +528,88 @@ def salvar_variantes(id):
     variantes_criadas = []
 
     try:
-        for v_data in variantes_dados:
-            tamanho = v_data.get('tamanho') or ''
-            cor = v_data.get('cor') or ''
-            cor_hex = v_data.get('cor_hex') or ''
-            ativo = v_data.get('ativo', False)
-            estoque = v_data.get('estoque', 0)
-            variant_id = v_data.get('id')
+        with db.session.no_autoflush:  # evita autoflush prematuro durante queries no loop
+            ids_submetidos = {int(v['id']) for v in variantes_dados if v.get('id')}
 
-            if variant_id:
-                # Atualizar variante existente por ID
-                variante = ProductVariant.query.get(variant_id)
-                if variante and variante.product_id == produto.id:
-                    variante.tamanho = tamanho
-                    variante.cor = cor
-                    variante.cor_hex = cor_hex
-                    variante.ativo = ativo
-                    variante.estoque = estoque if ativo else 0
-                    variantes_criadas.append({
-                        'id': variante.id,
-                        'tamanho': variante.tamanho,
-                        'cor': variante.cor,
-                        'cor_hex': variante.cor_hex,
-                        'estoque': variante.estoque,
-                        'ativo': variante.ativo
-                    })
-            else:
-                # Buscar variante existente pela combinação (product_id, tamanho, cor)
-                variante = ProductVariant.query.filter_by(
-                    product_id=produto.id,
-                    tamanho=tamanho,
-                    cor=cor
-                ).first()
+            # Deletar variantes removidas da UI (não presentes na lista submetida)
+            for v in list(produto.variantes):
+                if v.id not in ids_submetidos:
+                    CartItem.query.filter_by(variant_id=v.id).update({'variant_id': None})
+                    db.session.delete(v)
 
-                if variante:
-                    variante.cor_hex = cor_hex
-                    variante.ativo = ativo
-                    variante.estoque = estoque if ativo else 0
+            for v_data in variantes_dados:
+                tamanho = v_data.get('tamanho') or ''
+                cor = v_data.get('cor') or ''
+                cor_hex = v_data.get('cor_hex') or ''
+                ativo = v_data.get('ativo', False)
+                estoque = v_data.get('estoque', 0)
+                variant_id = v_data.get('id')
+
+                if variant_id:
+                    # Atualizar variante existente por ID
+                    variante = ProductVariant.query.get(variant_id)
+                    if variante and variante.product_id == produto.id:
+                        # Verificar conflito com outra variante existente
+                        conflito = ProductVariant.query.filter(
+                            ProductVariant.product_id == produto.id,
+                            ProductVariant.tamanho == tamanho,
+                            ProductVariant.cor == cor,
+                            ProductVariant.id != variant_id
+                        ).first()
+                        if conflito:
+                            db.session.rollback()
+                            return jsonify(
+                                sucesso=False,
+                                mensagem=f'Já existe outra variante com tamanho "{tamanho}" e cor "{cor or "sem cor"}".'
+                            ), 400
+                        variante.tamanho = tamanho
+                        variante.cor = cor
+                        variante.cor_hex = cor_hex
+                        variante.ativo = ativo
+                        variante.estoque = estoque if ativo else 0
+                        variantes_criadas.append({
+                            'id': variante.id,
+                            'tamanho': variante.tamanho,
+                            'cor': variante.cor,
+                            'cor_hex': variante.cor_hex,
+                            'estoque': variante.estoque,
+                            'ativo': variante.ativo
+                        })
                 else:
-                    # Criar nova variante apenas se estiver ativa
-                    if ativo:
-                        variante = ProductVariant(
-                            product_id=produto.id,
-                            tamanho=tamanho,
-                            cor=cor,
-                            cor_hex=cor_hex,
-                            estoque=estoque,
-                            ativo=True
-                        )
-                        db.session.add(variante)
-                        db.session.flush()
+                    # Buscar variante existente pela combinação (product_id, tamanho, cor)
+                    variante = ProductVariant.query.filter_by(
+                        product_id=produto.id,
+                        tamanho=tamanho,
+                        cor=cor
+                    ).first()
 
-                if variante:
-                    variantes_criadas.append({
-                        'id': variante.id,
-                        'tamanho': variante.tamanho,
-                        'cor': variante.cor,
-                        'cor_hex': variante.cor_hex,
-                        'estoque': variante.estoque,
-                        'ativo': variante.ativo
-                    })
+                    if variante:
+                        variante.cor_hex = cor_hex
+                        variante.ativo = ativo
+                        variante.estoque = estoque if ativo else 0
+                    else:
+                        # Criar nova variante apenas se estiver ativa
+                        if ativo:
+                            variante = ProductVariant(
+                                product_id=produto.id,
+                                tamanho=tamanho,
+                                cor=cor,
+                                cor_hex=cor_hex,
+                                estoque=estoque,
+                                ativo=True
+                            )
+                            db.session.add(variante)
+                            db.session.flush()
+
+                    if variante:
+                        variantes_criadas.append({
+                            'id': variante.id,
+                            'tamanho': variante.tamanho,
+                            'cor': variante.cor,
+                            'cor_hex': variante.cor_hex,
+                            'estoque': variante.estoque,
+                            'ativo': variante.ativo
+                        })
 
         db.session.commit()
 
@@ -577,6 +619,9 @@ def salvar_variantes(id):
             variantes=variantes_criadas
         )
 
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(sucesso=False, mensagem='Combinação de tamanho e cor já existe neste produto.'), 400
     except Exception as e:
         db.session.rollback()
         return jsonify(sucesso=False, mensagem=str(e)), 500
@@ -588,8 +633,8 @@ def desativar_variante(prod_id, var_id):
     variante = ProductVariant.query.get_or_404(var_id)
     if variante.product_id != prod_id:
         return jsonify(sucesso=False), 403
-    variante.ativo = False
-    variante.estoque = 0
+    CartItem.query.filter_by(variant_id=variante.id).update({'variant_id': None})
+    db.session.delete(variante)
     db.session.commit()
     return jsonify(sucesso=True)
 
@@ -611,8 +656,8 @@ def nova_categoria():
     if form.validate_on_submit():
         slug = form.slug.data
         if not slug:
-            slug = re.sub(r'[^\w\s-]', '', form.nome.data.lower())
-            slug = slug.replace(' ', '-')
+            base = re.sub(r'[^\w\s-]', '', form.nome.data.lower()).replace(' ', '-')
+            slug = _slug_unico(Category, base)
 
         categoria = Category(
             nome=form.nome.data,
@@ -642,8 +687,8 @@ def editar_categoria(id):
     if form.validate_on_submit():
         slug = form.slug.data
         if not slug:
-            slug = re.sub(r'[^\w\s-]', '', form.nome.data.lower())
-            slug = slug.replace(' ', '-')
+            base = re.sub(r'[^\w\s-]', '', form.nome.data.lower()).replace(' ', '-')
+            slug = _slug_unico(Category, base, exclude_id=categoria.id)
 
         categoria.nome = form.nome.data
         categoria.slug = slug
@@ -675,6 +720,158 @@ def deletar_categoria(id):
     db.session.commit()
     flash(f'Categoria "{nome}" deletada com sucesso!', 'success')
     return redirect(url_for('admin.categorias'))
+
+
+# ==================== MARCAS ====================
+
+@admin_bp.route('/marcas')
+def marcas():
+    """Listar todas as marcas."""
+    todas = Marca.query.order_by(Marca.nome).all()
+    return render_template('admin/marcas.html', marcas=todas)
+
+
+@admin_bp.route('/marcas/nova', methods=['GET', 'POST'])
+def nova_marca():
+    """Criar nova marca."""
+    form = MarcaForm()
+
+    if form.validate_on_submit():
+        slug = form.slug.data
+        if not slug:
+            base = re.sub(r'[^\w\s-]', '', form.nome.data.lower()).replace(' ', '-')
+            slug = _slug_unico(Marca, base)
+
+        marca = Marca(nome=form.nome.data, slug=slug)
+        db.session.add(marca)
+        db.session.commit()
+
+        flash(f'Marca "{marca.nome}" criada com sucesso!', 'success')
+        return redirect(url_for('admin.marcas'))
+
+    return render_template('admin/marca_form.html', form=form, marca=None)
+
+
+@admin_bp.route('/marcas/<int:id>/editar', methods=['GET', 'POST'])
+def editar_marca(id):
+    """Editar marca existente."""
+    marca = Marca.query.get_or_404(id)
+
+    if request.method == 'GET':
+        form = MarcaForm(marca_id=marca.id, obj=marca)
+    else:
+        form = MarcaForm(marca_id=marca.id)
+
+    if form.validate_on_submit():
+        slug = form.slug.data
+        if not slug:
+            base = re.sub(r'[^\w\s-]', '', form.nome.data.lower()).replace(' ', '-')
+            slug = _slug_unico(Marca, base, exclude_id=marca.id)
+
+        marca.nome = form.nome.data
+        marca.slug = slug
+        db.session.commit()
+
+        flash(f'Marca "{marca.nome}" atualizada com sucesso!', 'success')
+        return redirect(url_for('admin.marcas'))
+
+    return render_template('admin/marca_form.html', form=form, marca=marca)
+
+
+@admin_bp.route('/marcas/<int:id>/deletar', methods=['POST'])
+def deletar_marca(id):
+    """Deletar marca (apenas se não tiver produtos associados)."""
+    marca = Marca.query.get_or_404(id)
+
+    if marca.products:
+        flash(
+            f'A marca "{marca.nome}" possui {len(marca.products)} produto(s) '
+            'e não pode ser deletada. Remova a marca dos produtos primeiro.',
+            'error'
+        )
+        return redirect(url_for('admin.marcas'))
+
+    nome = marca.nome
+    db.session.delete(marca)
+    db.session.commit()
+    flash(f'Marca "{nome}" deletada com sucesso!', 'success')
+    return redirect(url_for('admin.marcas'))
+
+
+# ==================== TECIDOS ====================
+
+@admin_bp.route('/tecidos')
+def tecidos():
+    """Listar todos os tecidos."""
+    todos = Tecido.query.order_by(Tecido.nome).all()
+    return render_template('admin/tecidos.html', tecidos=todos)
+
+
+@admin_bp.route('/tecidos/novo', methods=['GET', 'POST'])
+def novo_tecido():
+    """Criar novo tecido."""
+    form = TecidoForm()
+
+    if form.validate_on_submit():
+        slug = form.slug.data
+        if not slug:
+            base = re.sub(r'[^\w\s-]', '', form.nome.data.lower()).replace(' ', '-')
+            slug = _slug_unico(Tecido, base)
+
+        tecido = Tecido(nome=form.nome.data, slug=slug)
+        db.session.add(tecido)
+        db.session.commit()
+
+        flash(f'Tecido "{tecido.nome}" criado com sucesso!', 'success')
+        return redirect(url_for('admin.tecidos'))
+
+    return render_template('admin/tecido_form.html', form=form, tecido=None)
+
+
+@admin_bp.route('/tecidos/<int:id>/editar', methods=['GET', 'POST'])
+def editar_tecido(id):
+    """Editar tecido existente."""
+    tecido = Tecido.query.get_or_404(id)
+
+    if request.method == 'GET':
+        form = TecidoForm(tecido_id=tecido.id, obj=tecido)
+    else:
+        form = TecidoForm(tecido_id=tecido.id)
+
+    if form.validate_on_submit():
+        slug = form.slug.data
+        if not slug:
+            base = re.sub(r'[^\w\s-]', '', form.nome.data.lower()).replace(' ', '-')
+            slug = _slug_unico(Tecido, base, exclude_id=tecido.id)
+
+        tecido.nome = form.nome.data
+        tecido.slug = slug
+        db.session.commit()
+
+        flash(f'Tecido "{tecido.nome}" atualizado com sucesso!', 'success')
+        return redirect(url_for('admin.tecidos'))
+
+    return render_template('admin/tecido_form.html', form=form, tecido=tecido)
+
+
+@admin_bp.route('/tecidos/<int:id>/deletar', methods=['POST'])
+def deletar_tecido(id):
+    """Deletar tecido (apenas se não tiver produtos associados)."""
+    tecido = Tecido.query.get_or_404(id)
+
+    if tecido.products:
+        flash(
+            f'O tecido "{tecido.nome}" possui {len(tecido.products)} produto(s) '
+            'e não pode ser deletado. Remova o tecido dos produtos primeiro.',
+            'error'
+        )
+        return redirect(url_for('admin.tecidos'))
+
+    nome = tecido.nome
+    db.session.delete(tecido)
+    db.session.commit()
+    flash(f'Tecido "{nome}" deletado com sucesso!', 'success')
+    return redirect(url_for('admin.tecidos'))
 
 
 # ==================== USUÁRIOS ====================

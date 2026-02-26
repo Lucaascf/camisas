@@ -30,6 +30,30 @@
         <p class="shop-header__count">{{ paginacao.total }} produto{{ 's' if paginacao.total != 1 else '' }}</p>
     </section>
 
+    {% if marcas_disponiveis %}
+    <div class="shop-filter">
+        <span class="shop-filter__label">Marca</span>
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro or none, tecido=tecido_atual.slug if tecido_atual else none) }}"
+           class="shop-filter__pill {% if not marca_atual %}shop-filter__pill--active{% endif %}">Todas</a>
+        {% for m in marcas_disponiveis %}
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro or none, marca=m.slug, tecido=tecido_atual.slug if tecido_atual else none) }}"
+           class="shop-filter__pill {% if marca_atual and marca_atual.id == m.id %}shop-filter__pill--active{% endif %}">{{ m.nome }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if tecidos_disponiveis %}
+    <div class="shop-filter">
+        <span class="shop-filter__label">Tecido</span>
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro or none, marca=marca_atual.slug if marca_atual else none) }}"
+           class="shop-filter__pill {% if not tecido_atual %}shop-filter__pill--active{% endif %}">Todos</a>
+        {% for t in tecidos_disponiveis %}
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro or none, marca=marca_atual.slug if marca_atual else none, tecido=t.slug) }}"
+           class="shop-filter__pill {% if tecido_atual and tecido_atual.id == t.id %}shop-filter__pill--active{% endif %}">{{ t.nome }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <section class="shop-grid">
         <div class="products__grid">
             {% for produto in produtos %}
@@ -54,16 +78,19 @@
                 <div class="product-card__info">
                     <p class="product-card__category">{{ produto.categoria.nome }}</p>
                     <h3 class="product-card__name">{{ produto.nome }}</h3>
-                    {% if produto.variantes %}
-                    {% set ns = namespace(cores=[]) %}
+                    {% set ns = namespace(cores=[], hexes=[]) %}
+                    {% for v in produto.variantes if v.ativo and v.cor %}
+                        {% if v.cor not in ns.cores %}
+                            {% set ns.cores = ns.cores + [v.cor] %}
+                            {% set ns.hexes = ns.hexes + [v.cor_hex or '#ccc'] %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if ns.cores %}
                     <div class="product-card__colors">
-                        {% for v in produto.variantes if v.ativo and v.cor %}
-                            {% if v.cor not in ns.cores %}
-                                {% set ns.cores = ns.cores + [v.cor] %}
-                                <span class="product-card__color-swatch"
-                                      style="background: {{ v.cor_hex or '#ccc' }};"
-                                      title="{{ v.cor }}"></span>
-                            {% endif %}
+                        {% for i in range(ns.cores|length) %}
+                            <span class="product-card__color-swatch"
+                                  style="background: {{ ns.hexes[i] }};"
+                                  title="{{ ns.cores[i] }}"></span>
                         {% endfor %}
                     </div>
                     {% endif %}
@@ -84,13 +111,13 @@
     {% if paginacao and paginacao.pages > 1 %}
     <div class="pagination">
         {% if paginacao.has_prev %}
-        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro if filtro else none, pagina=paginacao.prev_num) }}" class="pagination__btn">&larr; Anterior</a>
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro if filtro else none, marca=marca_atual.slug if marca_atual else none, tecido=tecido_atual.slug if tecido_atual else none, pagina=paginacao.prev_num) }}" class="pagination__btn">&larr; Anterior</a>
         {% endif %}
 
         <span class="pagination__info">Página {{ paginacao.page }} de {{ paginacao.pages }}</span>
 
         {% if paginacao.has_next %}
-        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro if filtro else none, pagina=paginacao.next_num) }}" class="pagination__btn">Próxima &rarr;</a>
+        <a href="{{ url_for('shop.listagem', slug=categoria.slug if categoria else none, filtro=filtro if filtro else none, marca=marca_atual.slug if marca_atual else none, tecido=tecido_atual.slug if tecido_atual else none, pagina=paginacao.next_num) }}" class="pagination__btn">Próxima &rarr;</a>
         {% endif %}
     </div>
     {% endif %}

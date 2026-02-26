@@ -1,0 +1,50 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}Tecidos{% endblock %}
+
+{% block conteudo %}
+<div class="admin-dashboard">
+    <div class="admin-dashboard__header">
+        <a href="{{ url_for('admin.novo_tecido') }}" class="admin-btn admin-btn--primary">+ Novo Tecido</a>
+    </div>
+
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Slug</th>
+                    <th width="100">Produtos</th>
+                    <th width="200">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tecido in tecidos %}
+                <tr>
+                    <td><strong>{{ tecido.nome }}</strong></td>
+                    <td><code>{{ tecido.slug }}</code></td>
+                    <td>{{ tecido.products | length }}</td>
+                    <td class="admin-table__actions">
+                        <a href="{{ url_for('admin.editar_tecido', id=tecido.id) }}" class="admin-btn admin-btn--small">Editar</a>
+                        <form method="POST" action="{{ url_for('admin.deletar_tecido', id=tecido.id) }}" style="display:inline"
+                              onsubmit="return confirm('Deletar tecido \'{{ tecido.nome }}\'? Esta ação não pode ser desfeita.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="admin-btn admin-btn--small admin-btn--danger"
+                                    {% if tecido.products %}disabled title="Possui produtos associados"{% endif %}>
+                                Deletar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align:center; padding: 2rem; color: var(--admin-text-muted);">
+                        Nenhum tecido cadastrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -64,6 +64,30 @@ class Category(db.Model):
         return f'<Category {self.nome}>'
 
 
+class Marca(db.Model):
+    """Marca de produto."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False, unique=True)
+    slug = db.Column(db.String(100), nullable=False, unique=True)
+    products = db.relationship('Product', backref='marca', lazy=True)
+
+    def __repr__(self):
+        return f'<Marca {self.nome}>'
+
+
+class Tecido(db.Model):
+    """Tipo de tecido de produto."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False, unique=True)
+    slug = db.Column(db.String(100), nullable=False, unique=True)
+    products = db.relationship('Product', backref='tecido', lazy=True)
+
+    def __repr__(self):
+        return f'<Tecido {self.nome}>'
+
+
 class Product(db.Model):
     """Produto (camisa)."""
 
@@ -75,6 +99,8 @@ class Product(db.Model):
     preco_promocional = db.Column(db.Float, nullable=True)
     imagem_url = db.Column(db.String(300))
     categoria_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
+    marca_id = db.Column(db.Integer, db.ForeignKey('marca.id'), nullable=True)
+    tecido_id = db.Column(db.Integer, db.ForeignKey('tecido.id'), nullable=True)
     destaque = db.Column(db.Boolean, default=False)
     novo = db.Column(db.Boolean, default=False)
     ativo = db.Column(db.Boolean, default=True)

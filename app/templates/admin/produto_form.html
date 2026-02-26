@@ -44,6 +44,22 @@
                     {% endif %}
                 </div>
 
+                <div class="admin-form__group">
+                    {{ form.marca_id.label(class_="admin-form__label") }}
+                    {{ form.marca_id(class_="admin-form__select") }}
+                    {% if form.marca_id.errors %}
+                        <span class="admin-form__error">{{ form.marca_id.errors[0] }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="admin-form__group">
+                    {{ form.tecido_id.label(class_="admin-form__label") }}
+                    {{ form.tecido_id(class_="admin-form__select") }}
+                    {% if form.tecido_id.errors %}
+                        <span class="admin-form__error">{{ form.tecido_id.errors[0] }}</span>
+                    {% endif %}
+                </div>
+
                 <div class="admin-form__row">
                     <div class="admin-form__group">
                         {{ form.preco.label(class_="admin-form__label") }}
@@ -75,17 +91,19 @@
                         Cada linha é uma combinação única de tamanho e cor. Produtos sem variantes ativas aparecem como "SEM ESTOQUE".
                     </p>
                     <div id="variantes-container">
-                        {% for v in produto.variantes %}
+                        {% for v in produto.variantes if v.ativo %}
                         <div class="variant-row" data-variant-id="{{ v.id }}"
                              style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:10px;background:white;border:1px solid #E5E5E5;flex-wrap:wrap;">
-                            <input type="color" class="v-cor-hex"
-                                   value="{{ v.cor_hex if v.cor_hex else '#1A1A1A' }}"
-                                   style="width:32px;height:32px;padding:2px;border:1px solid #ccc;cursor:pointer;{% if not v.cor %}visibility:hidden;{% endif %}">
+                            <span class="v-cor-preview"
+                                  style="display:inline-block;width:24px;height:24px;border:1px solid #ccc;background:{{ v.cor_hex or '#fff' }};flex-shrink:0;{% if not v.cor %}visibility:hidden;{% endif %}"></span>
                             <input type="text" class="v-cor-nome admin-form__input" placeholder="Cor (opcional)"
-                                   value="{{ v.cor }}" style="width:130px;">
+                                   value="{{ v.cor }}" style="width:120px;">
+                            <input type="text" class="v-cor-hex admin-form__input" placeholder="#1A1A1A" maxlength="7"
+                                   value="{{ v.cor_hex or '' }}"
+                                   style="width:82px;font-family:monospace;{% if not v.cor %}visibility:hidden;{% endif %}">
                             <select class="v-tamanho admin-form__select" style="width:80px;">
                                 <option value="">—</option>
-                                {% for t in ['PP','P','M','G','GG','XG','XXL'] %}
+                                {% for t in ['XS','S','M','L','XL','XXL'] %}
                                 <option value="{{ t }}" {% if v.tamanho == t %}selected{% endif %}>{{ t }}</option>
                                 {% endfor %}
                             </select>
@@ -320,7 +338,8 @@
             var vid = row.dataset.variantId || null;
             var tamanho = row.querySelector('.v-tamanho').value;
             var cor = row.querySelector('.v-cor-nome').value.trim();
-            var cor_hex = cor ? row.querySelector('.v-cor-hex').value : '';
+            var hexRaw  = row.querySelector('.v-cor-hex').value.trim();
+            var cor_hex = cor && /^#[0-9A-Fa-f]{6}$/.test(hexRaw) ? hexRaw : '';
             var ativo = row.querySelector('.v-ativo').checked;
             var estoque = parseInt(row.querySelector('.v-estoque').value) || 0;
             variantes.push({ id: vid ? parseInt(vid) : null, tamanho: tamanho, cor: cor, cor_hex: cor_hex, ativo: ativo, estoque: estoque });
@@ -365,17 +384,27 @@
     }
 
     function vincularEventosVariante(row) {
-        var corNome = row.querySelector('.v-cor-nome');
-        var corHex  = row.querySelector('.v-cor-hex');
-        var ativoChk = row.querySelector('.v-ativo');
-        var estoqueIn = row.querySelector('.v-estoque');
+        var corNome    = row.querySelector('.v-cor-nome');
+        var corHex     = row.querySelector('.v-cor-hex');
+        var corPreview = row.querySelector('.v-cor-preview');
+        var ativoChk   = row.querySelector('.v-ativo');
+        var estoqueIn  = row.querySelector('.v-estoque');
 
-        // Mostrar/ocultar color picker conforme cor digitada
+        // Mostrar/ocultar hex input e preview conforme cor digitada
         corNome.addEventListener('input', function() {
-            corHex.style.visibility = this.value.trim() ? 'visible' : 'hidden';
+            var temCor = this.value.trim();
+            corHex.style.visibility     = temCor ? 'visible' : 'hidden';
+            corPreview.style.visibility = temCor ? 'visible' : 'hidden';
             agendarSalvar();
         });
-        corHex.addEventListener('change', agendarSalvar);
+        // Atualizar preview ao digitar hex
+        corHex.addEventListener('input', function() {
+            var hex = this.value.trim();
+            if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                corPreview.style.background = hex;
+            }
+            agendarSalvar();
+        });
         row.querySelector('.v-tamanho').addEventListener('change', agendarSalvar);
         estoqueIn.addEventListener('input', agendarSalvar);
         ativoChk.addEventListener('change', function() {
@@ -392,11 +421,12 @@
         var div = document.createElement('div');
         div.className = 'variant-row';
         div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:10px;background:white;border:1px solid #E5E5E5;flex-wrap:wrap;';
-        div.innerHTML = '<input type="color" class="v-cor-hex" value="#1A1A1A" style="width:32px;height:32px;padding:2px;border:1px solid #ccc;cursor:pointer;visibility:hidden;">' +
-            '<input type="text" class="v-cor-nome admin-form__input" placeholder="Cor (opcional)" style="width:130px;">' +
+        div.innerHTML = '<span class="v-cor-preview" style="display:inline-block;width:24px;height:24px;border:1px solid #ccc;background:#fff;flex-shrink:0;visibility:hidden;"></span>' +
+            '<input type="text" class="v-cor-nome admin-form__input" placeholder="Cor (opcional)" style="width:120px;">' +
+            '<input type="text" class="v-cor-hex admin-form__input" placeholder="#1A1A1A" maxlength="7" value="" style="width:82px;font-family:monospace;visibility:hidden;">' +
             '<select class="v-tamanho admin-form__select" style="width:80px;">' +
             '<option value="">—</option>' +
-            ['PP','P','M','G','GG','XG','XXL'].map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('') +
+            ['XS','S','M','L','XL','XXL'].map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('') +
             '</select>' +
             '<input type="number" class="v-estoque admin-form__input" value="0" min="0" placeholder="Estoque" style="width:80px;">' +
             '<label style="display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap;">' +
@@ -420,6 +450,33 @@
           .then(function(d) { if (!d.sucesso) alert('Erro ao salvar cor da imagem.'); });
     }
 
+    function atualizarSelectoresCor() {
+        // Coletar cores únicas das variantes visíveis no DOM
+        var cores = [];
+        document.querySelectorAll('#variantes-container .variant-row').forEach(function(row) {
+            var cor = row.querySelector('.v-cor-nome').value.trim();
+            if (cor && cores.indexOf(cor) === -1) cores.push(cor);
+        });
+
+        // Reconstruir opções em todos os selects de cor das imagens
+        document.querySelectorAll('.img-cor-select').forEach(function(select) {
+            var valorAtual = select.value;
+            select.innerHTML = '<option value="">— todas as cores —</option>';
+            cores.forEach(function(cor) {
+                var opt = document.createElement('option');
+                opt.value = cor;
+                opt.textContent = cor;
+                if (cor === valorAtual) opt.selected = true;
+                select.appendChild(opt);
+            });
+            // Se a cor selecionada foi removida, limpar no servidor também
+            if (valorAtual && cores.indexOf(valorAtual) === -1) {
+                select.value = '';
+                definirCorImagem(select);
+            }
+        });
+    }
+
     function removerVariante(btn) {
         var row = btn.closest('.variant-row');
         var vid = row.dataset.variantId;
@@ -430,11 +487,12 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.sucesso) row.remove();
+                if (data.sucesso) { row.remove(); atualizarSelectoresCor(); }
                 else alert('Erro ao remover variante.');
             });
         } else {
             row.remove();
+            atualizarSelectoresCor();
         }
     }
 </script>

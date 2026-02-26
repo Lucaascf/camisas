@@ -999,6 +999,45 @@ h1, h2, h3, h4 {
     text-transform: uppercase;
 }
 
+/* ========== SHOP FILTER (MARCA) ========== */
+.shop-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 40px 24px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.shop-filter__label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #8B8B8B;
+    align-self: center;
+    margin-right: 4px;
+}
+
+.shop-filter__pill {
+    padding: 6px 16px;
+    border: 1px solid #1A1A1A;
+    font-size: 13px;
+    color: #1A1A1A;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.shop-filter__pill:hover {
+    background: #1A1A1A;
+    color: #fff;
+}
+
+.shop-filter__pill--active {
+    background: #1A1A1A;
+    color: #fff;
+}
+
 /* ========== SHOP GRID ========== */
 .shop-grid {
     padding: 48px 40px 100px;

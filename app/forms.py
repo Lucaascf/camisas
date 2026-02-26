@@ -5,7 +5,7 @@ from flask_wtf.file import MultipleFileField, FileAllowed
 from wtforms import StringField, PasswordField, BooleanField, TextAreaField, DecimalField, IntegerField, SelectField, HiddenField
 from wtforms.validators import DataRequired, EqualTo, Length, ValidationError, Optional, NumberRange
 
-from app.models import User, Product, Category
+from app.models import User, Product, Category, Marca, Tecido
 
 
 class LoginForm(FlaskForm):
@@ -119,6 +119,10 @@ class ProductForm(FlaskForm):
         DataRequired(message='Categoria é obrigatória')
     ], coerce=int)
 
+    marca_id = SelectField('Marca', validators=[Optional()], coerce=int)
+
+    tecido_id = SelectField('Tipo de Tecido', validators=[Optional()], coerce=int)
+
     destaque = BooleanField('Produto em Destaque')
     novo = BooleanField('Produto Novo')
     ativo = BooleanField('Produto Ativo', default=True)
@@ -129,6 +133,18 @@ class ProductForm(FlaskForm):
         self.categoria_id.choices = [
             (cat.id, cat.nome) for cat in Category.query.order_by(Category.nome).all()
         ]
+        # Popular dropdown de marcas
+        self.marca_id.choices = [(0, '— Sem marca —')] + [
+            (m.id, m.nome) for m in Marca.query.order_by(Marca.nome).all()
+        ]
+        if self.marca_id.data is None:
+            self.marca_id.data = 0
+        # Popular dropdown de tecidos
+        self.tecido_id.choices = [(0, '— Sem tecido —')] + [
+            (t.id, t.nome) for t in Tecido.query.order_by(Tecido.nome).all()
+        ]
+        if self.tecido_id.data is None:
+            self.tecido_id.data = 0
         self.produto_id = produto_id
 
     def validate_slug(self, field):
@@ -186,6 +202,72 @@ class CategoryForm(FlaskForm):
             query = Category.query.filter(Category.slug == field.data)
             if self.categoria_id:
                 query = query.filter(Category.id != self.categoria_id)
+            if query.first():
+                raise ValidationError('Este slug já está em uso.')
+
+
+class MarcaForm(FlaskForm):
+    """Formulário de marca para admin."""
+
+    nome = StringField('Nome da Marca', validators=[
+        DataRequired(message='Nome é obrigatório'),
+        Length(max=100, message='Nome muito longo')
+    ])
+
+    slug = StringField('Slug (URL)', validators=[
+        Optional(),
+        Length(max=100, message='Slug muito longo')
+    ])
+
+    def __init__(self, marca_id=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.marca_id = marca_id
+
+    def validate_nome(self, field):
+        query = Marca.query.filter(Marca.nome == field.data)
+        if self.marca_id:
+            query = query.filter(Marca.id != self.marca_id)
+        if query.first():
+            raise ValidationError('Já existe uma marca com este nome.')
+
+    def validate_slug(self, field):
+        if field.data:
+            query = Marca.query.filter(Marca.slug == field.data)
+            if self.marca_id:
+                query = query.filter(Marca.id != self.marca_id)
+            if query.first():
+                raise ValidationError('Este slug já está em uso.')
+
+
+class TecidoForm(FlaskForm):
+    """Formulário de tipo de tecido para admin."""
+
+    nome = StringField('Nome do Tecido', validators=[
+        DataRequired(message='Nome é obrigatório'),
+        Length(max=100, message='Nome muito longo')
+    ])
+
+    slug = StringField('Slug (URL)', validators=[
+        Optional(),
+        Length(max=100, message='Slug muito longo')
+    ])
+
+    def __init__(self, tecido_id=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tecido_id = tecido_id
+
+    def validate_nome(self, field):
+        query = Tecido.query.filter(Tecido.nome == field.data)
+        if self.tecido_id:
+            query = query.filter(Tecido.id != self.tecido_id)
+        if query.first():
+            raise ValidationError('Já existe um tecido com este nome.')
+
+    def validate_slug(self, field):
+        if field.data:
+            query = Tecido.query.filter(Tecido.slug == field.data)
+            if self.tecido_id:
+                query = query.filter(Tecido.id != self.tecido_id)
             if query.first():
                 raise ValidationError('Este slug já está em uso.')
 

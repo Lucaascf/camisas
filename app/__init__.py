@@ -43,6 +43,17 @@ def criar_app(config_class=ConfigDesenvolvimento):
 
     with app.app_context():
         db.create_all()
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("ALTER TABLE product ADD COLUMN marca_id INTEGER REFERENCES marca(id)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE product ADD COLUMN tecido_id INTEGER REFERENCES tecido(id)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     # --- User loader para Flask-Login ---
     @login_manager.user_loader

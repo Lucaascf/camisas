@@ -1,0 +1,38 @@
+{% extends "base_admin.html" %}
+
+{% block page_title %}{% if marca %}Editar Marca{% else %}Nova Marca{% endif %}{% endblock %}
+
+{% block conteudo %}
+<div class="admin-form-container">
+    <form method="POST" class="admin-form" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="admin-form__col" style="max-width: 640px;">
+            <h2 class="admin-form__section-title">Dados da Marca</h2>
+
+            <div class="admin-form__group">
+                {{ form.nome.label(class_="admin-form__label") }}
+                {{ form.nome(class_="admin-form__input", placeholder="Ex: Hugo Boss") }}
+                {% if form.nome.errors %}
+                    <span class="admin-form__error">{{ form.nome.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="admin-form__group">
+                {{ form.slug.label(class_="admin-form__label") }}
+                {{ form.slug(class_="admin-form__input", placeholder="Ex: hugo-boss (deixe vazio para gerar automaticamente)") }}
+                {% if form.slug.errors %}
+                    <span class="admin-form__error">{{ form.slug.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="admin-form__actions">
+                <button type="submit" class="admin-btn admin-btn--primary">
+                    {% if marca %}Salvar Alterações{% else %}Criar Marca{% endif %}
+                </button>
+                <a href="{{ url_for('admin.marcas') }}" class="admin-btn">Cancelar</a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
