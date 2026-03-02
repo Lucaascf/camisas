@@ -6,7 +6,7 @@ from flask import render_template, send_file, abort, flash, redirect, url_for
 from flask_login import login_required, current_user
 from io import BytesIO
 from app.blueprints.main import main_bp
-from app.models import CartItem, Category, Cupom, Product, ProductImage, Order, Wishlist
+from app.models import CartItem, Category, Cupom, Product, ProductImage, Order, Wishlist, SiteConfig
 from app.forms import EditarPerfilForm
 from app import db
 
@@ -18,7 +18,10 @@ def home():
     """Página inicial."""
     categorias = Category.query.all()
     destaques = Product.query.filter_by(destaque=True, ativo=True).limit(4).all()
-    return render_template('main/home.html', categorias=categorias, destaques=destaques)
+    colecao_imagem = SiteConfig.get('colecao_exclusiva_imagem')
+    historia_imagem = SiteConfig.get('nossa_historia_imagem')
+    return render_template('main/home.html', categorias=categorias, destaques=destaques,
+                           colecao_imagem=colecao_imagem, historia_imagem=historia_imagem)
 
 
 @main_bp.route('/conta/pedidos')

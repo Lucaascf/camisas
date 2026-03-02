@@ -1008,6 +1008,26 @@ def config_frete():
     return render_template('admin/frete.html', config=config)
 
 
+# ==================== CONTEÚDO DO SITE ====================
+
+@admin_bp.route('/config-site', methods=['GET', 'POST'])
+def config_site():
+    """Configurar imagens do site."""
+    from app.models import SiteConfig
+    if request.method == 'POST':
+        colecao_url = (request.form.get('colecao_exclusiva_imagem') or '').strip()
+        historia_url = (request.form.get('nossa_historia_imagem') or '').strip()
+        SiteConfig.set('colecao_exclusiva_imagem', colecao_url or None)
+        SiteConfig.set('nossa_historia_imagem', historia_url or None)
+        flash('Imagens do site atualizadas!', 'success')
+        return redirect(url_for('admin.config_site'))
+    colecao_imagem = SiteConfig.get('colecao_exclusiva_imagem')
+    historia_imagem = SiteConfig.get('nossa_historia_imagem')
+    return render_template('admin/config_site.html',
+                           colecao_imagem=colecao_imagem,
+                           historia_imagem=historia_imagem)
+
+
 # ==================== USUÁRIOS ====================
 
 @admin_bp.route('/usuarios')

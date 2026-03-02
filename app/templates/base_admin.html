@@ -24,6 +24,7 @@
                 <a href="{{ url_for('admin.usuarios') }}" class="admin-sidebar__link {% if request.endpoint and 'usuario' in request.endpoint %}active{% endif %}">Usuários</a>
                 <a href="{{ url_for('admin.cupons') }}" class="admin-sidebar__link {% if request.endpoint and 'cupom' in request.endpoint %}active{% endif %}">Cupons</a>
                 <a href="{{ url_for('admin.config_frete') }}" class="admin-sidebar__link {% if request.endpoint and 'frete' in request.endpoint %}active{% endif %}">Frete</a>
+                <a href="{{ url_for('admin.config_site') }}" class="admin-sidebar__link {% if request.endpoint == 'admin.config_site' %}active{% endif %}">Conteúdo do Site</a>
             </nav>
             <div class="admin-sidebar__footer">
                 <div class="admin-sidebar__user">Admin</div>

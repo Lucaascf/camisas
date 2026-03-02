@@ -1,0 +1,47 @@
+{% extends 'base_admin.html' %}
+{% block titulo %}Conteúdo do Site{% endblock %}
+{% block page_title %}Conteúdo do Site{% endblock %}
+
+{% block conteudo %}
+<form method="POST" action="{{ url_for('admin.config_site') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="admin-card" style="margin-bottom: 2rem;">
+        <h2 class="admin-card__title">Coleção Exclusiva (banner promocional)</h2>
+        <div class="admin-form__group">
+            <label class="admin-form__label" for="colecao_exclusiva_imagem">URL da imagem</label>
+            <input class="admin-form__input" type="url" id="colecao_exclusiva_imagem"
+                   name="colecao_exclusiva_imagem"
+                   value="{{ colecao_imagem or '' }}"
+                   placeholder="https://...">
+        </div>
+        {% if colecao_imagem %}
+        <div style="margin-top: 1rem;">
+            <p style="font-size: 0.8rem; color: #8B8B8B; margin-bottom: 0.5rem;">Preview atual:</p>
+            <img src="{{ colecao_imagem }}" alt="Coleção Exclusiva"
+                 style="max-width: 400px; max-height: 200px; object-fit: cover; display: block;">
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="admin-card" style="margin-bottom: 2rem;">
+        <h2 class="admin-card__title">Nossa História (seção sobre a marca)</h2>
+        <div class="admin-form__group">
+            <label class="admin-form__label" for="nossa_historia_imagem">URL da imagem</label>
+            <input class="admin-form__input" type="url" id="nossa_historia_imagem"
+                   name="nossa_historia_imagem"
+                   value="{{ historia_imagem or '' }}"
+                   placeholder="https://...">
+        </div>
+        {% if historia_imagem %}
+        <div style="margin-top: 1rem;">
+            <p style="font-size: 0.8rem; color: #8B8B8B; margin-bottom: 0.5rem;">Preview atual:</p>
+            <img src="{{ historia_imagem }}" alt="Nossa História"
+                 style="max-width: 400px; max-height: 200px; object-fit: cover; display: block;">
+        </div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="admin-btn admin-btn--primary">Salvar Imagens</button>
+</form>
+{% endblock %}

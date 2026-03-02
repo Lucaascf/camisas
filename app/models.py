@@ -393,6 +393,29 @@ class ConfigFrete(db.Model):
         return config
 
 
+class SiteConfig(db.Model):
+    """Configurações genéricas do site (chave-valor)."""
+
+    __tablename__ = 'site_config'
+
+    chave = db.Column(db.Text, primary_key=True)
+    valor = db.Column(db.Text, nullable=True)
+
+    @classmethod
+    def get(cls, chave, default=None):
+        row = cls.query.filter_by(chave=chave).first()
+        return row.valor if row else default
+
+    @classmethod
+    def set(cls, chave, valor):
+        row = cls.query.filter_by(chave=chave).first()
+        if row:
+            row.valor = valor
+        else:
+            db.session.add(cls(chave=chave, valor=valor))
+        db.session.commit()
+
+
 class EnderecoSalvo(db.Model):
     """Endereço de entrega salvo pelo usuário."""
 
