@@ -1,7 +1,11 @@
 <!-- ==================== HEADER ==================== -->
 <header class="header">
     <div class="header__top">
-        Frete grátis para compras acima de R$ 499
+        {% if frete_gratis_acima %}
+            Frete grátis para compras acima de R$ {{ frete_gratis_acima | int }}
+        {% else %}
+            Compre com segurança — pagamento 100% protegido
+        {% endif %}
     </div>
     <div class="header__main">
         <a href="{{ url_for('main.home') }}" class="header__logo">FERRATO</a>

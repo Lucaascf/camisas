@@ -998,10 +998,10 @@ def config_frete():
     config = ConfigFrete.get()
     if request.method == 'POST':
         config.local_valor        = float(request.form.get('local_valor') or 15)
-        local_gratis              = (request.form.get('local_gratis_acima') or '').strip()
-        config.local_gratis_acima = float(local_gratis) if local_gratis else None
-        fora_gratis               = (request.form.get('fora_gratis_acima') or '').strip()
-        config.fora_gratis_acima  = float(fora_gratis) if fora_gratis else None
+        gratis                    = (request.form.get('gratis_acima') or '').strip()
+        valor_gratis              = float(gratis) if gratis else None
+        config.local_gratis_acima = valor_gratis
+        config.fora_gratis_acima  = valor_gratis
         db.session.commit()
         flash('Configurações de frete salvas!', 'success')
         return redirect(url_for('admin.config_frete'))

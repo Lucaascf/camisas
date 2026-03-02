@@ -3,6 +3,12 @@
 import os
 from datetime import timedelta
 
+# Diretório raiz do projeto (um nível acima de app/)
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Caminho absoluto padrão para o banco SQLite
+_DEFAULT_DB = 'sqlite:///' + os.path.join(_BASE_DIR, 'instance', 'ferrato.db')
+
 
 class Config:
     """Configuração base."""
@@ -12,7 +18,7 @@ class Config:
             'SECRET_KEY não definida. Configure a variável de ambiente antes de iniciar em produção.'
         )
     SECRET_KEY = _secret or 'chave-secreta-dev-ferrato-2026'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///ferrato.db')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', _DEFAULT_DB)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = False
 

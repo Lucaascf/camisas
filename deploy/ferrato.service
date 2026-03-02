@@ -1,0 +1,43 @@
+# Serviço systemd para o Gunicorn do FERRATO
+#
+# Instruções de instalação no VPS:
+#   1. Edite as variáveis marcadas com <ALTERAR> abaixo
+#   2. sudo cp ferrato.service /etc/systemd/system/ferrato.service
+#   3. sudo systemctl daemon-reload
+#   4. sudo systemctl enable ferrato
+#   5. sudo systemctl start ferrato
+#   6. sudo systemctl status ferrato
+#
+# Logs em tempo real:
+#   sudo journalctl -u ferrato -f
+
+[Unit]
+Description=FERRATO — Gunicorn Flask App
+After=network.target
+
+[Service]
+# --- Usuário que vai rodar o processo ---
+User=<ALTERAR: usuário no VPS, ex: www-data ou o seu usuário>
+Group=<ALTERAR: grupo correspondente, ex: www-data>
+
+# --- Diretório do projeto ---
+WorkingDirectory=/var/www/ferrato
+
+# --- Variáveis de ambiente (alternativa: arquivo .env lido pelo python-dotenv) ---
+EnvironmentFile=/var/www/ferrato/.env
+
+# --- Comando de inicialização ---
+ExecStart=/var/www/ferrato/venv/bin/gunicorn \
+    -c /var/www/ferrato/gunicorn.conf.py \
+    wsgi:app
+
+# --- Reinicialização automática ---
+Restart=on-failure
+RestartSec=5s
+
+# --- Segurança básica ---
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

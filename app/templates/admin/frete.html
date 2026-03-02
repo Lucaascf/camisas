@@ -8,6 +8,22 @@
     <form method="POST" action="{{ url_for('admin.config_frete') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+        <!-- Frete grátis universal -->
+        <div class="admin-card" style="margin-bottom:1.5rem;">
+            <h3 style="margin:0 0 0.25rem; font-size:1rem; font-weight:600;">Frete grátis</h3>
+            <p style="margin:0 0 1.25rem; font-size:0.85rem; color:#6b7280;">
+                Valor mínimo para frete grátis — aplicado tanto para entrega local quanto para o restante do Brasil.
+                Deixe vazio para desativar.
+            </p>
+            <div class="admin-cupom-form__field" style="max-width:280px;">
+                <label class="admin-form-label">Frete grátis em compras acima de R$</label>
+                <input type="number" name="gratis_acima" min="0" step="0.01"
+                       value="{{ config.fora_gratis_acima if config.fora_gratis_acima is not none else '' }}"
+                       placeholder="ex: 499"
+                       class="admin-form-input">
+            </div>
+        </div>
+
         <!-- Entrega Local -->
         <div class="admin-card" style="margin-bottom:1.5rem;">
             <h3 style="margin:0 0 0.25rem; font-size:1rem; font-weight:600;">Entrega Local (Salvador / Lauro de Freitas)</h3>
@@ -22,13 +38,6 @@
                            value="{{ config.local_valor or 15.0 }}"
                            class="admin-form-input" required>
                 </div>
-                <div class="admin-cupom-form__field">
-                    <label class="admin-form-label">Frete grátis em compras acima de R$ <small style="color:#6b7280">(deixe vazio para desativar)</small></label>
-                    <input type="number" name="local_gratis_acima" min="0" step="0.01"
-                           value="{{ config.local_gratis_acima if config.local_gratis_acima is not none else '' }}"
-                           placeholder="ex: 200"
-                           class="admin-form-input">
-                </div>
             </div>
         </div>
 
@@ -36,19 +45,8 @@
         <div class="admin-card" style="margin-bottom:1.5rem;">
             <h3 style="margin:0 0 0.25rem; font-size:1rem; font-weight:600;">Outras cidades (Melhor Envio)</h3>
             <p style="margin:0 0 1.25rem; font-size:0.85rem; color:#6b7280;">
-                O valor do frete é calculado pelo Melhor Envio. Quando o pedido atingir o valor definido abaixo,
-                as opções do Melhor Envio são substituídas por "Frete Grátis".
+                O valor do frete é calculado pelo Melhor Envio com base no CEP de destino.
             </p>
-
-            <div class="admin-cupom-form__row">
-                <div class="admin-cupom-form__field">
-                    <label class="admin-form-label">Frete grátis em compras acima de R$ <small style="color:#6b7280">(deixe vazio para desativar)</small></label>
-                    <input type="number" name="fora_gratis_acima" min="0" step="0.01"
-                           value="{{ config.fora_gratis_acima if config.fora_gratis_acima is not none else '' }}"
-                           placeholder="ex: 300"
-                           class="admin-form-input">
-                </div>
-            </div>
         </div>
 
         <button type="submit" class="admin-btn admin-btn--primary">Salvar configurações</button>

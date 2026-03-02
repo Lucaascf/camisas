@@ -108,10 +108,12 @@ def criar_app(config_class=ConfigDesenvolvimento):
                 db.func.coalesce(db.func.sum(CartItem.quantidade), 0)
             ).filter_by(session_id=session['cart_session_id']).scalar()
 
+        from app.models import ConfigFrete
         return {
-            'ano_atual': datetime.now().year,
-            'nav_categories': Category.query.all(),
-            'cart_item_count': cart_count,
+            'ano_atual':          datetime.now().year,
+            'nav_categories':     Category.query.all(),
+            'cart_item_count':    cart_count,
+            'frete_gratis_acima': ConfigFrete.get().fora_gratis_acima,
         }
 
     # --- Headers de segurança ---
