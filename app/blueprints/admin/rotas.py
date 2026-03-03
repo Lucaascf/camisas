@@ -702,6 +702,10 @@ def editar_categoria(id):
         categoria.descricao = form.descricao.data
         categoria.imagem_url = form.imagem_url.data or None
 
+        if form.remover_imagem.data:
+            categoria.imagem_data = None
+            categoria.imagem_mimetype = None
+
         f = form.imagem_upload.data
         if f and f.filename:
             categoria.imagem_data = f.read()

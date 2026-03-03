@@ -41,6 +41,12 @@
                         <img src="{{ categoria.imagem_principal }}" alt="{{ categoria.nome }}"
                              style="max-width: 200px; max-height: 150px; object-fit: cover; display: block; margin-bottom: 4px;">
                         <small style="color: var(--gray);">Imagem atual. Faça upload para substituir.</small>
+                        {% if categoria.imagem_data %}
+                        <label style="display:flex; align-items:center; gap:6px; margin-top:4px; cursor:pointer;">
+                            {{ form.remover_imagem() }}
+                            <span style="color: #c0392b; font-size: 0.85rem;">Remover imagem atual</span>
+                        </label>
+                        {% endif %}
                     </div>
                 {% endif %}
                 {{ form.imagem_upload(class_="admin-form__input") }}

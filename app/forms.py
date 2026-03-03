@@ -186,6 +186,8 @@ class CategoryForm(FlaskForm):
         FileAllowed(['jpg', 'jpeg', 'png', 'webp'], 'Apenas imagens são permitidas!')
     ])
 
+    remover_imagem = BooleanField('Remover imagem atual')
+
     imagem_url = StringField('URL da Imagem (alternativa)', validators=[
         Optional(),
         Length(max=300)

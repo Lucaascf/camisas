@@ -24,8 +24,8 @@
         <div class="categories__grid">
             {% for cat in categorias %}
             <a href="{{ url_for('shop.listagem', slug=cat.slug) }}" class="category-card">
-                {% if cat.imagem_url %}
-                    <img src="{{ cat.imagem_url }}" alt="{{ cat.nome }}" class="category-card__image">
+                {% if cat.imagem_principal %}
+                    <img src="{{ cat.imagem_principal }}" alt="{{ cat.nome }}" class="category-card__image">
                 {% else %}
                     <div class="category-card__placeholder">
                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="0"/><path d="M3 9h18M9 3v18"/></svg>
