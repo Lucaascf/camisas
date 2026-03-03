@@ -666,6 +666,12 @@ def nova_categoria():
             descricao=form.descricao.data,
             imagem_url=form.imagem_url.data or None,
         )
+
+        f = form.imagem_upload.data
+        if f and f.filename:
+            categoria.imagem_data = f.read()
+            categoria.imagem_mimetype = f.mimetype or 'image/jpeg'
+
         db.session.add(categoria)
         db.session.commit()
 
@@ -695,6 +701,12 @@ def editar_categoria(id):
         categoria.slug = slug
         categoria.descricao = form.descricao.data
         categoria.imagem_url = form.imagem_url.data or None
+
+        f = form.imagem_upload.data
+        if f and f.filename:
+            categoria.imagem_data = f.read()
+            categoria.imagem_mimetype = f.mimetype or 'image/jpeg'
+
         db.session.commit()
 
         flash(f'Categoria "{categoria.nome}" atualizada com sucesso!', 'success')

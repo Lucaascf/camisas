@@ -159,3 +159,12 @@ def servir_imagem(image_id):
         as_attachment=False,
         download_name=imagem.filename
     )
+
+
+@main_bp.route('/categoria/imagem/<int:id>')
+def categoria_imagem(id):
+    """Serve a imagem binária de uma categoria."""
+    cat = Category.query.get_or_404(id)
+    if not cat.imagem_data:
+        abort(404)
+    return send_file(BytesIO(cat.imagem_data), mimetype=cat.imagem_mimetype or 'image/jpeg')

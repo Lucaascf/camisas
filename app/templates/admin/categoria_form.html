@@ -4,7 +4,7 @@
 
 {% block conteudo %}
 <div class="admin-form-container">
-    <form method="POST" class="admin-form" novalidate>
+    <form method="POST" class="admin-form" enctype="multipart/form-data" novalidate>
         {{ form.hidden_tag() }}
 
         <div class="admin-form__col" style="max-width: 640px;">
@@ -35,8 +35,23 @@
             </div>
 
             <div class="admin-form__group">
+                {{ form.imagem_upload.label(class_="admin-form__label") }}
+                {% if categoria and categoria.imagem_principal %}
+                    <div style="margin-bottom: 8px;">
+                        <img src="{{ categoria.imagem_principal }}" alt="{{ categoria.nome }}"
+                             style="max-width: 200px; max-height: 150px; object-fit: cover; display: block; margin-bottom: 4px;">
+                        <small style="color: var(--gray);">Imagem atual. Faça upload para substituir.</small>
+                    </div>
+                {% endif %}
+                {{ form.imagem_upload(class_="admin-form__input") }}
+                {% if form.imagem_upload.errors %}
+                    <span class="admin-form__error">{{ form.imagem_upload.errors[0] }}</span>
+                {% endif %}
+            </div>
+
+            <div class="admin-form__group">
                 {{ form.imagem_url.label(class_="admin-form__label") }}
-                {{ form.imagem_url(class_="admin-form__input", placeholder="https://exemplo.com/imagem.jpg (opcional)") }}
+                {{ form.imagem_url(class_="admin-form__input", placeholder="https://exemplo.com/imagem.jpg (opcional, usado se não houver upload)") }}
                 {% if form.imagem_url.errors %}
                     <span class="admin-form__error">{{ form.imagem_url.errors[0] }}</span>
                 {% endif %}

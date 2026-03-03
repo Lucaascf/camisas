@@ -1,7 +1,7 @@
 """Formulários Flask-WTF da aplicação FERRATO."""
 
 from flask_wtf import FlaskForm
-from flask_wtf.file import MultipleFileField, FileAllowed
+from flask_wtf.file import MultipleFileField, FileField, FileAllowed
 from wtforms import StringField, PasswordField, BooleanField, TextAreaField, DecimalField, IntegerField, SelectField, HiddenField
 from wtforms.validators import DataRequired, EqualTo, Length, ValidationError, Optional, NumberRange
 
@@ -181,7 +181,12 @@ class CategoryForm(FlaskForm):
         Length(max=200, message='Descrição muito longa')
     ])
 
-    imagem_url = StringField('URL da Imagem', validators=[
+    imagem_upload = FileField('Imagem (upload)', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'jpeg', 'png', 'webp'], 'Apenas imagens são permitidas!')
+    ])
+
+    imagem_url = StringField('URL da Imagem (alternativa)', validators=[
         Optional(),
         Length(max=300)
     ])

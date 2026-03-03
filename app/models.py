@@ -57,8 +57,16 @@ class Category(db.Model):
     slug = db.Column(db.String(50), unique=True, nullable=False)
     descricao = db.Column(db.String(200))
     imagem_url = db.Column(db.String(300))
+    imagem_data = db.Column(db.LargeBinary, nullable=True)
+    imagem_mimetype = db.Column(db.String(50), nullable=True)
 
     products = db.relationship('Product', backref='categoria', lazy=True)
+
+    @property
+    def imagem_principal(self):
+        if self.imagem_data:
+            return f'/categoria/imagem/{self.id}'
+        return self.imagem_url or None
 
     def __repr__(self):
         return f'<Category {self.nome}>'
