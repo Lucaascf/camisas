@@ -101,6 +101,18 @@ def criar_preferencia(pedido, itens):
             'currency_id': 'BRL'
         })
 
+    # Adicionar frete como item separado quando aplicável
+    if pedido.frete_valor and pedido.frete_valor > 0:
+        nome_frete = pedido.frete_tipo or 'Entrega'
+        mp_items.append({
+            'id': 'frete',
+            'title': f'Frete – {nome_frete}',
+            'description': 'Custo de entrega',
+            'quantity': 1,
+            'unit_price': float(pedido.frete_valor),
+            'currency_id': 'BRL'
+        })
+
     # Preparar dados do comprador
     # Extrair código de área do telefone (primeiros 2 dígitos)
     telefone = pedido.telefone or ''
