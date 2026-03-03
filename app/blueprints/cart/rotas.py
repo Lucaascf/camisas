@@ -355,8 +355,11 @@ def checkout():
 
         _opcao = next((o for o in (_opcoes_frete or []) if o['id'] == frete_tipo), None)
         if _opcao is None:
-            flash('Opção de frete inválida. Por favor, recalcule o frete.', 'error')
-            return redirect(url_for('cart.checkout'))
+            if _opcoes_frete and len(_opcoes_frete) == 1:
+                _opcao = _opcoes_frete[0]  # auto-seleciona a única opção válida
+            else:
+                flash('Opção de frete inválida. Por favor, recalcule o frete.', 'error')
+                return redirect(url_for('cart.checkout'))
 
         frete_valor = float(_opcao['preco'])
 

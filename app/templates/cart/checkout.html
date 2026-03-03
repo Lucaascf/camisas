@@ -346,11 +346,13 @@
             }
             // Fallback: preencher endereço com dados do servidor se ainda vazio
             var end = data.endereco || {};
-            if (end.localidade && !document.getElementById('cidade').value) {
-                document.getElementById('endereco').value = end.logradouro || '';
-                document.getElementById('bairro').value   = end.bairro    || '';
-                document.getElementById('cidade').value   = end.localidade;
-                document.getElementById('estado').value   = end.uf        || '';
+            if (end.localidade) {
+                document.getElementById('cidade').value = end.localidade;  // sempre atualiza
+                document.getElementById('estado').value = end.uf || '';    // sempre atualiza
+                if (end.logradouro && !document.getElementById('endereco').value)
+                    document.getElementById('endereco').value = end.logradouro;
+                if (end.bairro && !document.getElementById('bairro').value)
+                    document.getElementById('bairro').value = end.bairro;
                 document.getElementById('numero').focus();
             }
             // Atualizar status: sumir se endereço foi preenchido

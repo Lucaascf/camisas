@@ -100,12 +100,14 @@ def calcular_frete(cep_destino: str, qtd_itens: int = 1) -> list:
 
 
 def dados_do_cep(cep: str) -> dict:
-    """Consulta ViaCEP e retorna dict com logradouro/bairro/localidade/uf. Retorna {} em erro."""
+    """Consulta ViaCEP (com fallback BrasilAPI) e retorna dict com logradouro/bairro/localidade/uf."""
     cep_clean = cep.replace('-', '').strip()
+
+    # Tentativa 1: ViaCEP
     try:
         r = requests.get(
             f'https://viacep.com.br/ws/{cep_clean}/json/',
-            timeout=5,
+            timeout=3,
             headers={'User-Agent': 'FERRATO E-commerce (useferrato@gmail.com)'},
         )
         data = r.json()
@@ -118,6 +120,26 @@ def dados_do_cep(cep: str) -> dict:
             }
     except Exception:
         pass
+
+    # Fallback: BrasilAPI
+    try:
+        r = requests.get(
+            f'https://brasilapi.com.br/api/cep/v1/{cep_clean}',
+            timeout=3,
+            headers={'User-Agent': 'FERRATO E-commerce (useferrato@gmail.com)'},
+        )
+        if r.status_code == 200:
+            data = r.json()
+            if data.get('city'):
+                return {
+                    'logradouro': data.get('street', ''),
+                    'bairro':     data.get('neighborhood', ''),
+                    'localidade': data.get('city', ''),
+                    'uf':         data.get('state', ''),
+                }
+    except Exception:
+        pass
+
     return {}
 
 
