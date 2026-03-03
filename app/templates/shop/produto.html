@@ -361,14 +361,7 @@ if (!temCores) {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.sucesso) {
-                btn.textContent = 'Adicionado!';
-                var badge = document.getElementById('cart-badge');
-                badge.textContent = data.cart_count;
-                badge.style.display = '';
-                setTimeout(function() {
-                    btn.textContent = textoOriginal;
-                    btn.disabled = false;
-                }, 2000);
+                window.location.href = '/cart/';
             } else {
                 alert(data.mensagem);
                 btn.textContent = textoOriginal;
