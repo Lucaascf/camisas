@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import mercadopago
+from datetime import datetime, timezone, timedelta
 from flask import current_app, url_for
 
 
@@ -184,6 +185,53 @@ def criar_preferencia(pedido, itens):
     init_point = response_data['sandbox_init_point'] if is_sandbox else response_data['init_point']
 
     return preference_id, init_point
+
+
+def criar_pagamento(pedido, payment_data):
+    """
+    Cria pagamento direto via /v1/payments (Payment Brick).
+
+    payment_data vem do callback onSubmit do Brick:
+    - Cartão: {token, installments, payment_method_id, issuer_id, payer}
+    - PIX:    {payment_method_id: 'pix', payer: {email, ...}}
+
+    Retorna o dict 'response' do SDK.
+    """
+    sdk = _get_sdk()
+
+    request_data = {
+        "transaction_amount": float(round(pedido.total, 2)),
+        "description": f"Pedido FERRATO #{pedido.codigo_cliente or pedido.id}",
+        "external_reference": f"FERRATO-{pedido.id}",
+        "payment_method_id": payment_data["payment_method_id"],
+        "payer": payment_data["payer"],
+    }
+
+    # Campos exclusivos de cartão
+    if payment_data.get("token"):
+        request_data.update({
+            "token": payment_data["token"],
+            "installments": int(payment_data.get("installments", 1)),
+            "issuer_id": payment_data.get("issuer_id"),
+        })
+
+    # PIX: definir expiração de 15 minutos
+    if payment_data.get("payment_method_id") == "pix":
+        tz_br = timezone(timedelta(hours=-3))
+        expires = datetime.now(tz_br) + timedelta(minutes=15)
+        request_data["date_of_expiration"] = expires.strftime('%Y-%m-%dT%H:%M:%S.000-03:00')
+
+    base_url = current_app.config.get("APP_BASE_URL", "").rstrip("/")
+    if base_url and "localhost" not in base_url:
+        request_data["notification_url"] = f"{base_url}/cart/webhook/mercadopago"
+
+    current_app.logger.info("[MP] Criando pagamento direto para pedido %s", pedido.id)
+    result = sdk.payment().create(request_data)
+
+    if result["status"] not in [200, 201]:
+        raise Exception(f"Erro ao criar pagamento no Mercado Pago: {result}")
+
+    return result["response"]
 
 
 def calcular_parcelas(preco: float) -> list:

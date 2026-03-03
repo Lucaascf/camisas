@@ -93,10 +93,37 @@
                 </p>
             </div>
 
+            <!-- Seção PIX (quando pagamento está pendente e há QR code) -->
+            {% if pedido.status == 'aguardando_pagamento' and pedido.pix_qr_code_base64 %}
+            <div class="pix-section">
+                <h3 class="pix-section__title">Pague com PIX</h3>
+                <p class="pix-section__instrucao">Escaneie o QR Code ou copie o código abaixo no seu app de pagamento. O pedido será confirmado automaticamente após o pagamento.</p>
+
+                <div class="pix-section__qr-wrap">
+                    <img src="data:image/png;base64,{{ pedido.pix_qr_code_base64 }}"
+                         alt="QR Code PIX" class="pix-section__qr-img">
+                </div>
+
+                <p class="pix-section__label">Código PIX (copia e cola):</p>
+                <textarea class="pix-section__codigo" readonly rows="3">{{ pedido.pix_qr_code }}</textarea>
+                <button type="button" class="pix-section__btn-copiar" onclick="copiarPix()">Copiar código PIX</button>
+                <p id="pix-copiado" style="display:none; color:#16a34a; font-size:13px; margin-top:6px;">Código copiado!</p>
+
+                <div class="pix-section__status">
+                    <span class="pix-section__spinner"></span>
+                    <span id="pix-status-msg">Aguardando confirmação do pagamento…</span>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Informações de contato -->
             <div class="confirmation__contact">
                 <p class="confirmation__contact-text">
-                    Enviamos um email de confirmação para <strong>{{ pedido.email }}</strong> com todos os detalhes do seu pedido.
+                    {% if pedido.status == 'pago' %}
+                        Enviamos um email de confirmação para <strong>{{ pedido.email }}</strong> com todos os detalhes do seu pedido.
+                    {% else %}
+                        Após a confirmação do pagamento, você receberá um email em <strong>{{ pedido.email }}</strong>.
+                    {% endif %}
                 </p>
             </div>
 
@@ -108,4 +135,40 @@
         </div>
     </section>
 
+{% endblock %}
+
+{% block scripts %}
+{% if pedido.status == 'aguardando_pagamento' and pedido.pix_qr_code_base64 %}
+<script>
+function copiarPix() {
+    var codigo = document.querySelector('.pix-section__codigo');
+    navigator.clipboard.writeText(codigo.value).then(function() {
+        document.getElementById('pix-copiado').style.display = 'block';
+        setTimeout(function() {
+            document.getElementById('pix-copiado').style.display = 'none';
+        }, 3000);
+    }).catch(function() {
+        codigo.select();
+        document.execCommand('copy');
+        document.getElementById('pix-copiado').style.display = 'block';
+    });
+}
+
+// Polling a cada 4s para detectar pagamento PIX confirmado
+var pixInterval = setInterval(async function() {
+    try {
+        var r = await fetch('/cart/pix-status/{{ pedido.id }}');
+        var d = await r.json();
+        if (d.status === 'pago') {
+            clearInterval(pixInterval);
+            document.getElementById('pix-status-msg').textContent = 'Pagamento confirmado! Recarregando…';
+            setTimeout(function() { location.reload(); }, 1500);
+        } else if (d.status === 'cancelado') {
+            clearInterval(pixInterval);
+            document.getElementById('pix-status-msg').textContent = 'Pagamento expirado ou cancelado.';
+        }
+    } catch(e) { /* ignorar falhas de rede transitórias */ }
+}, 4000);
+</script>
+{% endif %}
 {% endblock %}

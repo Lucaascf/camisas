@@ -3,9 +3,9 @@
 import logging
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from flask import flash, jsonify, redirect, render_template, request, session, url_for
+from flask import current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
 from app import db, csrf, limiter
@@ -297,7 +297,7 @@ def calcular_frete():
     return jsonify(opcoes=opcoes, endereco=_dados)
 
 
-@cart_bp.route('/checkout', methods=['GET', 'POST'])
+@cart_bp.route('/checkout')
 def checkout():
     """Página de checkout."""
     itens = obter_itens_carrinho()
@@ -310,176 +310,329 @@ def checkout():
 
     # Pré-preencher dados do usuário se estiver logado
     enderecos_salvos = []
-    if current_user.is_authenticated and request.method == 'GET':
+    if current_user.is_authenticated:
         form.nome.data = current_user.nome
         form.email.data = current_user.email
         enderecos_salvos = EnderecoSalvo.query.filter_by(
             user_id=current_user.id
         ).order_by(EnderecoSalvo.criado_em.desc()).all()
 
-    if form.validate_on_submit():
-        # Calcular total
-        subtotal   = sum(item.product.preco_final * item.quantidade for item in itens)
-        frete_tipo = request.form.get('frete_tipo', '')
+    total = sum(item.product.preco_final * item.quantidade for item in itens)
+    mp_public_key = current_app.config.get('MERCADOPAGO_PUBLIC_KEY', '')
 
-        # Recalcular frete no servidor (ignorar valor do form)
-        from app.blueprints.cart.frete_service import (
-            calcular_frete as calc_api,
-            is_salvador_lf, calcular_frete_local, cidade_do_cep,
-        )
-        from app.models import ConfigFrete
+    return render_template(
+        'cart/checkout.html',
+        form=form,
+        itens=itens,
+        total=total,
+        enderecos_salvos=enderecos_salvos,
+        mp_public_key=mp_public_key,
+    )
 
-        _cep = (form.cep.data or '').replace('-', '')
-        _qtd = sum(item.quantidade for item in itens)
 
-        # Detectar cidade/estado no backend para evitar dependência do cliente
-        _cidade, _estado = cidade_do_cep(_cep)
-        if not _cidade:
-            _cidade = form.cidade.data or ''
-            _estado = form.estado.data or ''
+@cart_bp.route('/processar-pagamento', methods=['POST'])
+def processar_pagamento():
+    """Processa pagamento via Payment Brick (endpoint JSON)."""
+    dados = request.get_json(silent=True) or {}
+    form_data = dados.get('form', {})
+    payment_data = dados.get('payment', {})
 
-        if is_salvador_lf(_cidade, _estado):
-            _opcoes_frete = calcular_frete_local(subtotal)
-        else:
-            _opcoes_frete = calc_api(_cep, _qtd)
-            if _opcoes_frete:
-                config = ConfigFrete.get()
-                if config.fora_gratis_acima is not None and subtotal >= config.fora_gratis_acima:
-                    _opcoes_frete = [{
-                        'id':             'Frete Grátis',
-                        'nome':           'Grátis',
-                        'transportadora': '',
-                        'preco':          0.0,
-                        'prazo':          '',
-                    }]
+    # Validar campos obrigatórios
+    for campo in ('nome', 'email', 'cep', 'endereco', 'numero', 'bairro', 'cidade', 'estado', 'frete_tipo'):
+        if not str(form_data.get(campo, '')).strip():
+            return jsonify(ok=False, error=f'Campo obrigatório não preenchido: {campo}'), 400
 
-        _opcao = next((o for o in (_opcoes_frete or []) if o['id'] == frete_tipo), None)
-        if _opcao is None:
-            if _opcoes_frete and len(_opcoes_frete) == 1:
-                _opcao = _opcoes_frete[0]  # auto-seleciona a única opção válida
+    if not payment_data.get('payment_method_id'):
+        return jsonify(ok=False, error='Dados de pagamento inválidos.'), 400
+
+    itens = obter_itens_carrinho()
+    if not itens:
+        return jsonify(ok=False, error='Carrinho vazio.'), 400
+
+    # Recalcular frete no backend
+    from app.blueprints.cart.frete_service import (
+        calcular_frete as calc_api,
+        is_salvador_lf, calcular_frete_local, cidade_do_cep,
+    )
+    from app.models import ConfigFrete
+
+    subtotal = sum(item.product.preco_final * item.quantidade for item in itens)
+    frete_tipo = form_data['frete_tipo']
+    _cep = form_data['cep'].replace('-', '')
+    _qtd = sum(item.quantidade for item in itens)
+
+    _cidade, _estado = cidade_do_cep(_cep)
+    if not _cidade:
+        _cidade = form_data.get('cidade', '')
+        _estado = form_data.get('estado', '')
+
+    if is_salvador_lf(_cidade, _estado):
+        _opcoes_frete = calcular_frete_local(subtotal)
+    else:
+        _opcoes_frete = calc_api(_cep, _qtd)
+        if _opcoes_frete:
+            config = ConfigFrete.get()
+            if config.fora_gratis_acima is not None and subtotal >= config.fora_gratis_acima:
+                _opcoes_frete = [{'id': 'Frete Grátis', 'nome': 'Grátis', 'transportadora': '', 'preco': 0.0, 'prazo': ''}]
+
+    _opcao = next((o for o in (_opcoes_frete or []) if o['id'] == frete_tipo), None)
+    if _opcao is None and _opcoes_frete and len(_opcoes_frete) == 1:
+        _opcao = _opcoes_frete[0]
+    if _opcao is None:
+        return jsonify(ok=False, error='Opção de frete inválida. Recarregue a página e tente novamente.'), 400
+
+    frete_valor = float(_opcao['preco'])
+
+    # Revalidar cupom no backend
+    cupom_codigo_form = str(form_data.get('cupom_codigo', '')).strip().upper()
+    desconto_valor = 0.0
+    cupom_aplicado = None
+    if cupom_codigo_form:
+        cupom_obj = Cupom.query.filter_by(codigo=cupom_codigo_form, ativo=True).first()
+        agora = datetime.now(timezone.utc)
+        if cupom_obj:
+            validade_ok = True
+            if cupom_obj.validade:
+                val = cupom_obj.validade.replace(tzinfo=timezone.utc) if cupom_obj.validade.tzinfo is None else cupom_obj.validade
+                validade_ok = val >= agora
+            usos_ok = not cupom_obj.usos_maximos or cupom_obj.usos_atuais < cupom_obj.usos_maximos
+            if validade_ok and usos_ok:
+                desconto_valor = round(subtotal * cupom_obj.desconto_percentual / 100, 2)
+                cupom_aplicado = cupom_obj
+
+    total = subtotal + frete_valor - desconto_valor
+
+    # Verificar estoque
+    for item in itens:
+        estoque_disponivel = item.variant.estoque if item.variant else item.product.estoque
+        if item.quantidade > estoque_disponivel:
+            tamanho_info = f' (tamanho {item.variant.tamanho})' if item.variant else ''
+            return jsonify(ok=False, error=f'Estoque insuficiente para {item.product.nome}{tamanho_info}. Disponível: {estoque_disponivel}.'), 400
+
+    # Criar pedido
+    pedido = Order(
+        user_id=current_user.id if current_user.is_authenticated else None,
+        total=total,
+        nome=form_data['nome'].strip(),
+        email=form_data['email'].strip(),
+        telefone=str(form_data.get('telefone', '')).strip(),
+        endereco=form_data['endereco'].strip(),
+        numero=form_data['numero'].strip(),
+        complemento=str(form_data.get('complemento', '')).strip() or None,
+        bairro=form_data['bairro'].strip(),
+        cidade=form_data['cidade'].strip(),
+        estado=form_data['estado'].strip(),
+        cep=form_data['cep'].strip(),
+        frete_tipo=frete_tipo,
+        frete_valor=frete_valor,
+        cupom_codigo=cupom_aplicado.codigo if cupom_aplicado else None,
+        desconto_valor=desconto_valor,
+        status='aguardando_pagamento',
+    )
+    db.session.add(pedido)
+    db.session.flush()
+
+    _data = datetime.now(timezone.utc).strftime('%y%m%d')
+    _sufixo = 1000 + secrets.randbelow(9000)
+    pedido.codigo_cliente = f'{_data}-{_sufixo}'
+
+    for item in itens:
+        db.session.add(OrderItem(
+            order_id=pedido.id,
+            product_id=item.product_id,
+            variant_id=item.variant_id,
+            tamanho=item.variant.tamanho if item.variant else None,
+            cor=item.variant.cor if item.variant else None,
+            quantidade=item.quantidade,
+            preco_unitario=item.product.preco_final,
+        ))
+
+    db.session.commit()
+    session['ultimo_pedido_id'] = pedido.id
+
+    # Salvar endereço (usuários autenticados)
+    if current_user.is_authenticated and form_data.get('salvar_endereco') == '1':
+        ja_existe = EnderecoSalvo.query.filter_by(
+            user_id=current_user.id,
+            cep=form_data['cep'],
+            numero=form_data['numero'],
+        ).first()
+        if not ja_existe:
+            db.session.add(EnderecoSalvo(
+                user_id=current_user.id,
+                apelido=str(form_data.get('apelido_endereco', '')).strip() or None,
+                cep=form_data['cep'].strip(),
+                endereco=form_data['endereco'].strip(),
+                numero=form_data['numero'].strip(),
+                complemento=str(form_data.get('complemento', '')).strip() or None,
+                bairro=form_data['bairro'].strip(),
+                cidade=form_data['cidade'].strip(),
+                estado=form_data['estado'].strip(),
+            ))
+            db.session.commit()
+
+    # Chamar API de pagamento
+    try:
+        resposta = mercadopago_service.criar_pagamento(pedido, payment_data)
+    except Exception as e:
+        pedido.status = 'cancelado'
+        db.session.commit()
+        logger.error('[PAGAMENTO] Erro na API MP: %s', e)
+        return jsonify(ok=False, error='Erro ao conectar com o serviço de pagamento. Tente novamente.'), 502
+
+    mp_status = resposta.get('status', '')
+    mp_payment_id = str(resposta.get('id', ''))
+    pedido.mercadopago_payment_id = mp_payment_id
+
+    if mp_status == 'approved':
+        # Cartão aprovado: baixar estoque, confirmar pedido
+        for item in pedido.items:
+            if item.variant:
+                item.variant.estoque -= item.quantidade
             else:
-                flash('Opção de frete inválida. Por favor, recalcule o frete.', 'error')
-                return redirect(url_for('cart.checkout'))
+                item.product.estoque -= item.quantidade
 
-        frete_valor = float(_opcao['preco'])
+        pedido.status = 'pago'
 
-        # Revalidar cupom no backend
-        cupom_codigo_form = request.form.get('cupom_codigo', '').strip().upper()
-        desconto_valor = 0.0
-        cupom_aplicado = None
-        if cupom_codigo_form:
-            cupom_obj = Cupom.query.filter_by(codigo=cupom_codigo_form, ativo=True).first()
-            agora = datetime.now(timezone.utc)
-            if cupom_obj:
-                validade_ok = True
-                if cupom_obj.validade:
-                    val = cupom_obj.validade.replace(tzinfo=timezone.utc) if cupom_obj.validade.tzinfo is None else cupom_obj.validade
-                    validade_ok = val >= agora
-                usos_ok = not cupom_obj.usos_maximos or cupom_obj.usos_atuais < cupom_obj.usos_maximos
-                if validade_ok and usos_ok:
-                    desconto_valor = round(subtotal * cupom_obj.desconto_percentual / 100, 2)
-                    cupom_aplicado = cupom_obj
+        if current_user.is_authenticated:
+            CartItem.query.filter_by(user_id=current_user.id).delete()
+        elif 'cart_session_id' in session:
+            CartItem.query.filter_by(session_id=session['cart_session_id']).delete()
 
-        total = subtotal + frete_valor - desconto_valor
-
-        # Verificar estoque antes de criar o pedido
-        for item in itens:
-            estoque_disponivel = item.variant.estoque if item.variant else item.product.estoque
-            if item.quantidade > estoque_disponivel:
-                tamanho_info = f' (tamanho {item.variant.tamanho})' if item.variant else ''
-                flash(f'Estoque insuficiente para {item.product.nome}{tamanho_info}. Disponível: {estoque_disponivel}', 'error')
-                return redirect(url_for('cart.ver_carrinho'))
-
-        # Criar pedido (sem atualizar estoque ainda - aguardando pagamento)
-        pedido = Order(
-            user_id=current_user.id if current_user.is_authenticated else None,
-            total=total,
-            nome=form.nome.data,
-            email=form.email.data,
-            telefone=form.telefone.data,
-            endereco=form.endereco.data,
-            numero=form.numero.data,
-            complemento=form.complemento.data,
-            bairro=form.bairro.data,
-            cidade=form.cidade.data,
-            estado=form.estado.data,
-            cep=form.cep.data,
-            frete_tipo=frete_tipo,
-            frete_valor=frete_valor,
-            cupom_codigo=cupom_aplicado.codigo if cupom_aplicado else None,
-            desconto_valor=desconto_valor,
-            status='aguardando_pagamento'
-        )
-        db.session.add(pedido)
-        db.session.flush()  # Para obter o ID do pedido
-
-        # Gerar código amigável para o cliente (ex: 260221-4839)
-        _data = datetime.now(timezone.utc).strftime('%y%m%d')
-        _sufixo = 1000 + secrets.randbelow(9000)
-        pedido.codigo_cliente = f'{_data}-{_sufixo}'
-
-        # Criar itens do pedido (SEM atualizar estoque ainda)
-        for item in itens:
-            order_item = OrderItem(
-                order_id=pedido.id,
-                product_id=item.product_id,
-                variant_id=item.variant_id,
-                tamanho=item.variant.tamanho if item.variant else None,
-                cor=item.variant.cor if item.variant else None,
-                quantidade=item.quantidade,
-                preco_unitario=item.product.preco_final
+        if cupom_aplicado:
+            db.session.execute(
+                db.update(Cupom)
+                .where(Cupom.id == cupom_aplicado.id)
+                .values(usos_atuais=Cupom.usos_atuais + 1)
             )
-            db.session.add(order_item)
 
         db.session.commit()
 
-        # Guardar na sessão para autorizar acesso à confirmação (visitantes anônimos)
-        session['ultimo_pedido_id'] = pedido.id
-
-        # Salvar endereço (usuários autenticados)
-        if current_user.is_authenticated and request.form.get('salvar_endereco') == '1':
-            ja_existe = EnderecoSalvo.query.filter_by(
-                user_id=current_user.id,
-                cep=form.cep.data,
-                numero=form.numero.data
-            ).first()
-            if not ja_existe:
-                apelido = request.form.get('apelido_endereco', '').strip() or None
-                db.session.add(EnderecoSalvo(
-                    user_id=current_user.id,
-                    apelido=apelido,
-                    cep=form.cep.data,
-                    endereco=form.endereco.data,
-                    numero=form.numero.data,
-                    complemento=form.complemento.data or None,
-                    bairro=form.bairro.data,
-                    cidade=form.cidade.data,
-                    estado=form.estado.data,
-                ))
-                db.session.commit()
-
-        # Criar preferência no Mercado Pago
         try:
-            preference_id, init_point = mercadopago_service.criar_preferencia(pedido, itens)
-
-            # Salvar preference_id no pedido
-            pedido.mercadopago_preference_id = preference_id
-            db.session.commit()
-
-            # Redirecionar para o Mercado Pago
-            return redirect(init_point)
-
+            enviar_email_pedido_confirmado(pedido)
         except Exception as e:
-            # Se falhar, cancelar o pedido
-            pedido.status = 'cancelado'
-            db.session.commit()
-            flash(f'Erro ao processar pagamento: {str(e)}', 'error')
-            return redirect(url_for('cart.ver_carrinho'))
+            logger.error('[PAGAMENTO] Erro ao enviar email: %s', e)
 
-    # Calcular total para exibição
-    total = sum(item.product.preco_final * item.quantidade for item in itens)
+        return jsonify(ok=True, order_id=pedido.id, status='pago')
 
-    return render_template('cart/checkout.html', form=form, itens=itens, total=total, enderecos_salvos=enderecos_salvos)
+    elif mp_status in ('pending', 'in_process'):
+        # PIX ou pagamento pendente: salvar QR code se disponível
+        poi = resposta.get('point_of_interaction', {})
+        td = poi.get('transaction_data', {})
+        pedido.pix_qr_code = td.get('qr_code')
+        pedido.pix_qr_code_base64 = td.get('qr_code_base64')
+        pedido.mercadopago_payment_id = str(resposta.get('id', ''))
+        db.session.commit()
+
+        tz_br = timezone(timedelta(hours=-3))
+        pix_expires_at = int((datetime.now(tz_br) + timedelta(minutes=15)).timestamp())
+
+        return jsonify(
+            ok=True,
+            order_id=pedido.id,
+            status='aguardando_pagamento',
+            pix_qr=pedido.pix_qr_code,
+            pix_img=pedido.pix_qr_code_base64,
+            pix_expires_at=pix_expires_at,
+        )
+
+    else:
+        # Rejeitado
+        pedido.status = 'cancelado'
+        db.session.commit()
+        status_detail = resposta.get('status_detail', '')
+        msg = _mensagem_rejeicao(status_detail)
+        return jsonify(ok=False, error=msg)
+
+
+def _mensagem_rejeicao(status_detail):
+    """Converte status_detail do MP em mensagem amigável."""
+    mapa = {
+        'cc_rejected_insufficient_amount': 'Saldo insuficiente no cartão.',
+        'cc_rejected_bad_filled_card_number': 'Número do cartão incorreto.',
+        'cc_rejected_bad_filled_date': 'Data de validade incorreta.',
+        'cc_rejected_bad_filled_security_code': 'Código de segurança incorreto.',
+        'cc_rejected_blacklist': 'Cartão bloqueado. Contate sua operadora.',
+        'cc_rejected_call_for_authorize': 'Pagamento não autorizado. Contate sua operadora.',
+        'cc_rejected_card_disabled': 'Cartão desativado. Contate sua operadora.',
+        'cc_rejected_duplicated_payment': 'Pagamento duplicado detectado.',
+        'cc_rejected_high_risk': 'Pagamento recusado por segurança.',
+        'cc_rejected_max_attempts': 'Excedeu as tentativas permitidas. Tente outro cartão.',
+    }
+    return mapa.get(status_detail, 'Pagamento não aprovado. Verifique os dados do cartão e tente novamente.')
+
+
+@cart_bp.route('/pix-status/<int:order_id>')
+def pix_status(order_id):
+    """Retorna o status atual do pedido para polling de PIX."""
+    pedido = Order.query.get_or_404(order_id)
+
+    # Mesma verificação de acesso da página de confirmação
+    if current_user.is_authenticated:
+        if pedido.user_id != current_user.id:
+            return jsonify(status='error'), 403
+    elif pedido.user_id is not None:
+        return jsonify(status='error'), 403
+    else:
+        if pedido.id != session.get('ultimo_pedido_id'):
+            return jsonify(status='error'), 403
+
+    # Se ainda pendente e temos o payment_id, consultar MP
+    if pedido.status == 'aguardando_pagamento' and pedido.mercadopago_payment_id:
+        try:
+            resultado = mercadopago_service.consultar_pagamento_por_id(
+                pedido.mercadopago_payment_id
+            )
+            if resultado and resultado['status'] == 'approved':
+                pedido.status = 'pago'
+                db.session.commit()
+        except Exception as e:
+            current_app.logger.warning('[pix_status] erro ao consultar MP: %s', e)
+
+    return jsonify(status=pedido.status)
+
+
+@cart_bp.route('/regenerar-pix/<int:order_id>')
+def regenerar_pix(order_id):
+    """Gera um novo código PIX para um pedido expirado ou pendente."""
+    pedido = Order.query.get_or_404(order_id)
+
+    if current_user.is_authenticated:
+        if pedido.user_id != current_user.id:
+            return jsonify(ok=False, error='Acesso negado'), 403
+    elif pedido.user_id is not None:
+        return jsonify(ok=False, error='Acesso negado'), 403
+    else:
+        if pedido.id != session.get('ultimo_pedido_id'):
+            return jsonify(ok=False, error='Acesso negado'), 403
+
+    if pedido.status not in ('aguardando_pagamento', 'cancelado'):
+        return jsonify(ok=False, error='Pedido não pode ser reprocessado'), 400
+
+    payment_data = {"payment_method_id": "pix", "payer": {"email": pedido.email}}
+    try:
+        resposta = mercadopago_service.criar_pagamento(pedido, payment_data)
+    except Exception as e:
+        current_app.logger.error('[regenerar_pix] %s', e)
+        return jsonify(ok=False, error='Erro ao gerar novo PIX'), 500
+
+    poi = resposta.get('point_of_interaction', {})
+    td = poi.get('transaction_data', {})
+    pedido.pix_qr_code = td.get('qr_code')
+    pedido.pix_qr_code_base64 = td.get('qr_code_base64')
+    pedido.mercadopago_payment_id = str(resposta.get('id', ''))
+    pedido.status = 'aguardando_pagamento'
+    db.session.commit()
+
+    tz_br = timezone(timedelta(hours=-3))
+    pix_expires_at = int((datetime.now(tz_br) + timedelta(minutes=15)).timestamp())
+
+    return jsonify(
+        ok=True,
+        pix_qr=pedido.pix_qr_code,
+        pix_img=pedido.pix_qr_code_base64,
+        pix_expires_at=pix_expires_at,
+    )
 
 
 @cart_bp.route('/confirmacao/<int:order_id>')

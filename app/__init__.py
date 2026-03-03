@@ -127,12 +127,14 @@ def criar_app(config_class=ConfigDesenvolvimento):
         response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https:; "
-            "connect-src 'self'; "
-            "frame-src https://www.mercadopago.com.br;"
+            "script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mlstatic.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mlstatic.com; "
+            "font-src 'self' https://fonts.gstatic.com https://*.mercadopago.com https://*.mlstatic.com; "
+            "img-src 'self' data: blob: https:; "
+            "connect-src 'self' https://api.mercadopago.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mlstatic.com; "
+            "frame-src https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://*.mercadolivre.com.br https://*.mlstatic.com; "
+            "worker-src blob: 'self'; "
+            "child-src blob: https://*.mercadopago.com https://*.mercadopago.com.br https://*.mlstatic.com; "
         )
         return response
 

@@ -239,6 +239,8 @@ class Order(db.Model):
     # Mercado Pago
     mercadopago_preference_id = db.Column(db.String(200), nullable=True)
     mercadopago_payment_id = db.Column(db.String(200), nullable=True)
+    pix_qr_code = db.Column(db.Text, nullable=True)
+    pix_qr_code_base64 = db.Column(db.Text, nullable=True)
 
     # Frete
     frete_tipo  = db.Column(db.String(60), nullable=True)

@@ -55,6 +55,7 @@ class Config:
 
     # Mercado Pago
     MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN')
+    MERCADOPAGO_PUBLIC_KEY = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
     MERCADOPAGO_WEBHOOK_SECRET = os.environ.get('MERCADOPAGO_WEBHOOK_SECRET', '')
     MERCADOPAGO_SANDBOX = os.environ.get('MERCADOPAGO_SANDBOX', 'false').lower() == 'true'
     APP_BASE_URL = os.environ.get('APP_BASE_URL', '')
