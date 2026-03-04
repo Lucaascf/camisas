@@ -56,38 +56,43 @@ def listagem(slug=None):
     else:
         query = Product.query.filter_by(ativo=True)
 
-    # Filtros disponíveis no contexto atual (antes de aplicar filtros de marca/tecido)
-    ids_sq = query.with_entities(Product.id).subquery()
+    # Resolver objetos de marca e tecido primeiro
+    marca_atual = Marca.query.filter_by(slug=marca_slug).first() if marca_slug else None
+    tecido_atual = Tecido.query.filter_by(slug=tecido_slug).first() if tecido_slug else None
+
+    # Marcas disponíveis = filtradas pelo tecido selecionado (filtros cascata)
+    query_para_marcas = query
+    if tecido_atual:
+        query_para_marcas = query_para_marcas.filter(Product.tecido_id == tecido_atual.id)
+    ids_para_marcas = query_para_marcas.with_entities(Product.id).subquery()
     marcas_disponiveis = (
         Marca.query
         .join(Product, Product.marca_id == Marca.id)
-        .filter(Product.id.in_(ids_sq))
+        .filter(Product.id.in_(ids_para_marcas))
         .distinct()
         .order_by(Marca.nome)
         .all()
     )
+
+    # Tecidos disponíveis = filtrados pela marca selecionada (filtros cascata)
+    query_para_tecidos = query
+    if marca_atual:
+        query_para_tecidos = query_para_tecidos.filter(Product.marca_id == marca_atual.id)
+    ids_para_tecidos = query_para_tecidos.with_entities(Product.id).subquery()
     tecidos_disponiveis = (
         Tecido.query
         .join(Product, Product.tecido_id == Tecido.id)
-        .filter(Product.id.in_(ids_sq))
+        .filter(Product.id.in_(ids_para_tecidos))
         .distinct()
         .order_by(Tecido.nome)
         .all()
     )
 
-    # Aplicar filtro de marca
-    marca_atual = None
-    if marca_slug:
-        marca_atual = Marca.query.filter_by(slug=marca_slug).first()
-        if marca_atual:
-            query = query.filter(Product.marca_id == marca_atual.id)
-
-    # Aplicar filtro de tecido
-    tecido_atual = None
-    if tecido_slug:
-        tecido_atual = Tecido.query.filter_by(slug=tecido_slug).first()
-        if tecido_atual:
-            query = query.filter(Product.tecido_id == tecido_atual.id)
+    # Aplicar ambos os filtros na query principal
+    if marca_atual:
+        query = query.filter(Product.marca_id == marca_atual.id)
+    if tecido_atual:
+        query = query.filter(Product.tecido_id == tecido_atual.id)
 
     paginacao = query.options(joinedload(Product.variantes)).order_by(Product.criado_em.desc()).paginate(
         page=pagina, per_page=PRODUTOS_POR_PAGINA, error_out=False
