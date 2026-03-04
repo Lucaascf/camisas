@@ -15,21 +15,21 @@
             <div class="admin-sidebar__logo">FERRATO Admin</div>
             <nav class="admin-sidebar__nav">
                 <a href="{{ url_for('admin.dashboard') }}" class="admin-sidebar__link {% if request.endpoint in ('admin.dashboard', 'admin.novo_produto', 'admin.editar_produto') %}active{% endif %}">
-                    Produtos
+                    <span class="admin-sidebar__icon">📦</span> Produtos
                 </a>
-                <a href="{{ url_for('admin.pedidos') }}" class="admin-sidebar__link {% if request.endpoint and 'admin.pedido' in request.endpoint %}active{% endif %}">Pedidos</a>
-                <a href="{{ url_for('admin.categorias') }}" class="admin-sidebar__link {% if request.endpoint and 'categoria' in request.endpoint %}active{% endif %}">Categorias</a>
-                <a href="{{ url_for('admin.marcas') }}" class="admin-sidebar__link {% if request.endpoint and 'marca' in request.endpoint %}active{% endif %}">Marcas</a>
-                <a href="{{ url_for('admin.tecidos') }}" class="admin-sidebar__link {% if request.endpoint and 'tecido' in request.endpoint %}active{% endif %}">Tecidos</a>
-                <a href="{{ url_for('admin.usuarios') }}" class="admin-sidebar__link {% if request.endpoint and 'usuario' in request.endpoint %}active{% endif %}">Usuários</a>
-                <a href="{{ url_for('admin.cupons') }}" class="admin-sidebar__link {% if request.endpoint and 'cupom' in request.endpoint %}active{% endif %}">Cupons</a>
-                <a href="{{ url_for('admin.config_frete') }}" class="admin-sidebar__link {% if request.endpoint and 'frete' in request.endpoint %}active{% endif %}">Frete</a>
-                <a href="{{ url_for('admin.config_site') }}" class="admin-sidebar__link {% if request.endpoint == 'admin.config_site' %}active{% endif %}">Conteúdo do Site</a>
+                <a href="{{ url_for('admin.pedidos') }}" class="admin-sidebar__link {% if request.endpoint and 'admin.pedido' in request.endpoint %}active{% endif %}"><span class="admin-sidebar__icon">🧾</span> Pedidos</a>
+                <a href="{{ url_for('admin.categorias') }}" class="admin-sidebar__link {% if request.endpoint and 'categoria' in request.endpoint %}active{% endif %}"><span class="admin-sidebar__icon">🗂️</span> Categorias</a>
+                <a href="{{ url_for('admin.marcas') }}" class="admin-sidebar__link {% if request.endpoint and 'marca' in request.endpoint %}active{% endif %}"><span class="admin-sidebar__icon">🏷️</span> Marcas</a>
+                <a href="{{ url_for('admin.tecidos') }}" class="admin-sidebar__link {% if request.endpoint and 'tecido' in request.endpoint %}active{% endif %}"><span class="admin-sidebar__icon">🧵</span> Tecidos</a>
+                <a href="{{ url_for('admin.usuarios') }}" class="admin-sidebar__link {% if request.endpoint and 'usuario' in request.endpoint %}active{% endif %}"><span class="admin-sidebar__icon">👥</span> Usuários</a>
+                <a href="{{ url_for('admin.cupons') }}" class="admin-sidebar__link {% if request.endpoint and 'cupom' in request.endpoint %}active{% endif %}"><span class="admin-sidebar__icon">🎟️</span> Cupons</a>
+                <a href="{{ url_for('admin.config_frete') }}" class="admin-sidebar__link {% if request.endpoint and 'frete' in request.endpoint %}active{% endif %}"><span class="admin-sidebar__icon">🚚</span> Frete</a>
+                <a href="{{ url_for('admin.config_site') }}" class="admin-sidebar__link {% if request.endpoint == 'admin.config_site' %}active{% endif %}"><span class="admin-sidebar__icon">⚙️</span> Conteúdo do Site</a>
             </nav>
             <div class="admin-sidebar__footer">
                 <div class="admin-sidebar__user">Admin</div>
-                <a href="{{ url_for('main.home') }}" class="admin-sidebar__link-out">Ver Site</a>
-                <a href="{{ url_for('admin.logout_admin') }}" class="admin-sidebar__link-out" style="margin-top:6px;color:#c0392b;">Sair</a>
+                <a href="{{ url_for('main.home') }}" class="admin-sidebar__link-out">↗ Ver Site</a>
+                <a href="{{ url_for('admin.logout_admin') }}" class="admin-sidebar__link-out admin-sidebar__link-out--danger">⬡ Sair</a>
             </div>
         </aside>
 
