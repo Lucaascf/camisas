@@ -4,6 +4,19 @@ import logging
 import re
 from urllib.parse import urlparse
 
+import nh3
+
+# Tags e atributos permitidos na descrição de produto (rich text seguro)
+_DESCRICAO_TAGS = {"b", "i", "u", "strong", "em", "ul", "ol", "li", "p", "br", "span"}
+_DESCRICAO_ATTRS = {}  # nenhum atributo permitido
+
+
+def _sanitizar_descricao(html: str) -> str:
+    """Remove tags/atributos perigosos do HTML da descrição."""
+    if not html:
+        return html
+    return nh3.clean(html, tags=_DESCRICAO_TAGS, attributes=_DESCRICAO_ATTRS)
+
 from flask import render_template, redirect, url_for, flash, request, session, jsonify, current_app
 
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +28,9 @@ from app.forms import ProductForm, CategoryForm, MarcaForm, TecidoForm
 from app.models import Cupom, Product, Category, Marca, Tecido, ProductImage, ProductImageURL, ProductVariant, Order, User, CartItem, SolicitacaoEncomenda
 
 logger = logging.getLogger(__name__)
+
+ALLOWED_IMAGE_MIMES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 def _slug_unico(model_cls, base_slug, exclude_id=None):
@@ -218,7 +234,7 @@ def novo_produto():
         produto = Product(
             nome=form.nome.data,
             slug=slug,
-            descricao=form.descricao.data,
+            descricao=_sanitizar_descricao(form.descricao.data),
             preco=form.preco.data,
             preco_promocional=form.preco_promocional.data,
             imagem_url=form.imagem_url.data,
@@ -239,11 +255,18 @@ def novo_produto():
         if arquivos:
             for ordem, arquivo in enumerate(arquivos):
                 if arquivo and arquivo.filename:
+                    if arquivo.mimetype not in ALLOWED_IMAGE_MIMES:
+                        flash(f'Formato não permitido: {arquivo.filename}', 'error')
+                        return redirect(url_for('admin.criar_produto'))
+                    data = arquivo.read()
+                    if len(data) > MAX_IMAGE_SIZE:
+                        flash(f'Arquivo muito grande: {arquivo.filename} (máx 10MB)', 'error')
+                        return redirect(url_for('admin.criar_produto'))
                     imagem = ProductImage(
                         product_id=produto.id,
                         filename=arquivo.filename,
                         mimetype=arquivo.mimetype,
-                        data=arquivo.read(),
+                        data=data,
                         ordem=ordem
                     )
                     db.session.add(imagem)
@@ -292,7 +315,7 @@ def editar_produto(id):
         # Atualizar produto
         produto.nome = form.nome.data
         produto.slug = slug
-        produto.descricao = form.descricao.data
+        produto.descricao = _sanitizar_descricao(form.descricao.data)
         produto.preco = form.preco.data
         produto.preco_promocional = form.preco_promocional.data
         produto.imagem_url = form.imagem_url.data
@@ -312,11 +335,18 @@ def editar_produto(id):
 
             for idx, arquivo in enumerate(arquivos):
                 if arquivo and arquivo.filename:
+                    if arquivo.mimetype not in ALLOWED_IMAGE_MIMES:
+                        flash(f'Formato não permitido: {arquivo.filename}', 'error')
+                        return redirect(url_for('admin.editar_produto', id=produto.id))
+                    data = arquivo.read()
+                    if len(data) > MAX_IMAGE_SIZE:
+                        flash(f'Arquivo muito grande: {arquivo.filename} (máx 10MB)', 'error')
+                        return redirect(url_for('admin.editar_produto', id=produto.id))
                     imagem = ProductImage(
                         product_id=produto.id,
                         filename=arquivo.filename,
                         mimetype=arquivo.mimetype,
-                        data=arquivo.read(),
+                        data=data,
                         ordem=max_ordem + idx + 1
                     )
                     db.session.add(imagem)
@@ -399,11 +429,18 @@ def adicionar_imagens(id):
 
     for idx, arquivo in enumerate(arquivos):
         if arquivo and arquivo.filename:
+            if arquivo.mimetype not in ALLOWED_IMAGE_MIMES:
+                flash(f'Formato não permitido: {arquivo.filename}', 'error')
+                return redirect(url_for('admin.editar_produto', id=id))
+            data = arquivo.read()
+            if len(data) > MAX_IMAGE_SIZE:
+                flash(f'Arquivo muito grande: {arquivo.filename} (máx 10MB)', 'error')
+                return redirect(url_for('admin.editar_produto', id=id))
             imagem = ProductImage(
                 product_id=produto.id,
                 filename=arquivo.filename,
                 mimetype=arquivo.mimetype,
-                data=arquivo.read(),
+                data=data,
                 ordem=max_ordem + idx + 1
             )
             db.session.add(imagem)

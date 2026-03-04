@@ -58,6 +58,7 @@ def ver_carrinho():
 
 
 @cart_bp.route('/adicionar', methods=['POST'])
+@limiter.limit("30 per minute")
 def adicionar():
     """Adiciona um produto ao carrinho (AJAX)."""
     dados = request.get_json(silent=True) or {}
@@ -131,6 +132,7 @@ def adicionar():
 
 
 @cart_bp.route('/atualizar', methods=['POST'])
+@limiter.limit("30 per minute")
 def atualizar():
     """Atualiza a quantidade de um item no carrinho (AJAX)."""
     dados = request.get_json(silent=True) or {}
@@ -189,6 +191,7 @@ def atualizar():
 
 
 @cart_bp.route('/remover/<int:item_id>', methods=['POST'])
+@limiter.limit("30 per minute")
 def remover(item_id):
     """Remove um item do carrinho (AJAX)."""
     item = CartItem.query.get(item_id)
@@ -217,7 +220,6 @@ def remover(item_id):
 
 
 @cart_bp.route('/aplicar-cupom', methods=['POST'])
-@csrf.exempt
 @limiter.limit("20 per minute")
 def aplicar_cupom():
     """Valida e aplica um cupom de desconto (AJAX)."""
@@ -331,6 +333,7 @@ def checkout():
 
 
 @cart_bp.route('/processar-pagamento', methods=['POST'])
+@limiter.limit("5 per minute")
 def processar_pagamento():
     """Processa pagamento via Payment Brick (endpoint JSON)."""
     dados = request.get_json(silent=True) or {}
@@ -485,12 +488,28 @@ def processar_pagamento():
     pedido.mercadopago_payment_id = mp_payment_id
 
     if mp_status == 'approved':
-        # Cartão aprovado: baixar estoque, confirmar pedido
+        # Cartão aprovado: baixar estoque de forma atômica (evita overselling em race conditions)
         for item in pedido.items:
             if item.variant:
-                item.variant.estoque -= item.quantidade
+                resultado = db.session.execute(
+                    db.update(ProductVariant)
+                    .where(ProductVariant.id == item.variant_id)
+                    .where(ProductVariant.estoque >= item.quantidade)
+                    .values(estoque=ProductVariant.estoque - item.quantidade)
+                )
             else:
-                item.product.estoque -= item.quantidade
+                resultado = db.session.execute(
+                    db.update(Product)
+                    .where(Product.id == item.product_id)
+                    .where(Product.estoque >= item.quantidade)
+                    .values(estoque=Product.estoque - item.quantidade)
+                )
+            if resultado.rowcount == 0:
+                # Estoque insuficiente no momento do commit — cancelar pedido
+                pedido.status = 'cancelado'
+                db.session.commit()
+                tamanho_info = f' (tamanho {item.variant.tamanho})' if item.variant else ''
+                return jsonify(ok=False, error=f'Estoque insuficiente para {item.product.nome}{tamanho_info}. Tente novamente.'), 409
 
         pedido.status = 'pago'
 
@@ -725,7 +744,9 @@ def confirmacao(order_id):
             logger.error("CONFIRMACAO: erro ao consultar pagamento — %s", e)
             flash('Verificando status do pagamento...', 'info')
 
-    return render_template('cart/confirmacao.html', pedido=pedido)
+    mostrar_dados_pessoais = current_user.is_authenticated
+    return render_template('cart/confirmacao.html', pedido=pedido,
+                           mostrar_dados_pessoais=mostrar_dados_pessoais)
 
 
 @cart_bp.route('/webhook/mercadopago', methods=['POST'])
@@ -757,9 +778,21 @@ def webhook_mercadopago():
         if resultado['status'] == 'approved' and pedido.status == 'aguardando_pagamento':
             for item in pedido.items:
                 if item.variant:
-                    item.variant.estoque -= item.quantidade
+                    res = db.session.execute(
+                        db.update(ProductVariant)
+                        .where(ProductVariant.id == item.variant_id)
+                        .where(ProductVariant.estoque >= item.quantidade)
+                        .values(estoque=ProductVariant.estoque - item.quantidade)
+                    )
                 else:
-                    item.product.estoque -= item.quantidade
+                    res = db.session.execute(
+                        db.update(Product)
+                        .where(Product.id == item.product_id)
+                        .where(Product.estoque >= item.quantidade)
+                        .values(estoque=Product.estoque - item.quantidade)
+                    )
+                if res.rowcount == 0:
+                    logger.warning('[WEBHOOK MP] Estoque insuficiente para item %s no pedido %s', item.id, pedido.id)
 
             pedido.status = 'pago'
             pedido.mercadopago_payment_id = resultado['payment_id']

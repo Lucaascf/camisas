@@ -27,18 +27,19 @@
                 {% endif %}
             </div>
 
+            {% set nome_exibido = pedido.nome.split()[0] if pedido.nome else '' %}
             {% if pedido.status == 'pago' %}
                 <h1 class="confirmation__title">Pagamento Aprovado!</h1>
-                <p class="confirmation__subtitle">Obrigado pela sua compra, {{ pedido.nome }}. Seu pedido foi confirmado.</p>
+                <p class="confirmation__subtitle">Obrigado pela sua compra, {{ nome_exibido }}. Seu pedido foi confirmado.</p>
             {% elif pedido.status == 'aguardando_pagamento' %}
                 <h1 class="confirmation__title">Aguardando Pagamento</h1>
-                <p class="confirmation__subtitle">{{ pedido.nome }}, estamos processando seu pagamento. Por favor, aguarde alguns instantes e atualize esta página.</p>
+                <p class="confirmation__subtitle">{{ nome_exibido }}, estamos processando seu pagamento. Por favor, aguarde alguns instantes e atualize esta página.</p>
             {% elif pedido.status == 'cancelado' %}
                 <h1 class="confirmation__title">Pagamento Não Aprovado</h1>
-                <p class="confirmation__subtitle">{{ pedido.nome }}, infelizmente seu pagamento não foi aprovado. Por favor, tente novamente.</p>
+                <p class="confirmation__subtitle">{{ nome_exibido }}, infelizmente seu pagamento não foi aprovado. Por favor, tente novamente.</p>
             {% else %}
                 <h1 class="confirmation__title">Pedido Realizado</h1>
-                <p class="confirmation__subtitle">Obrigado pela sua compra, {{ pedido.nome }}.</p>
+                <p class="confirmation__subtitle">Obrigado pela sua compra, {{ nome_exibido }}.</p>
             {% endif %}
 
             <!-- Detalhes do pedido -->
@@ -82,6 +83,7 @@
             </div>
 
             <!-- Endereço de entrega -->
+            {% if mostrar_dados_pessoais %}
             <div class="confirmation__address">
                 <h2 class="confirmation__address-title">Endereço de Entrega</h2>
                 <p class="confirmation__address-text">
@@ -92,6 +94,7 @@
                     CEP {{ pedido.cep }}
                 </p>
             </div>
+            {% endif %}
 
             <!-- Seção PIX (quando pagamento está pendente e há QR code) -->
             {% if pedido.status == 'aguardando_pagamento' and pedido.pix_qr_code_base64 %}
@@ -119,10 +122,18 @@
             <!-- Informações de contato -->
             <div class="confirmation__contact">
                 <p class="confirmation__contact-text">
-                    {% if pedido.status == 'pago' %}
-                        Enviamos um email de confirmação para <strong>{{ pedido.email }}</strong> com todos os detalhes do seu pedido.
+                    {% if mostrar_dados_pessoais %}
+                        {% if pedido.status == 'pago' %}
+                            Enviamos um email de confirmação para <strong>{{ pedido.email }}</strong> com todos os detalhes do seu pedido.
+                        {% else %}
+                            Após a confirmação do pagamento, você receberá um email em <strong>{{ pedido.email }}</strong>.
+                        {% endif %}
                     {% else %}
-                        Após a confirmação do pagamento, você receberá um email em <strong>{{ pedido.email }}</strong>.
+                        {% if pedido.status == 'pago' %}
+                            Um email de confirmação foi enviado com os detalhes do seu pedido.
+                        {% else %}
+                            Após a confirmação do pagamento, você receberá um email com os detalhes.
+                        {% endif %}
                     {% endif %}
                 </p>
             </div>
