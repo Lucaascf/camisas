@@ -108,23 +108,95 @@
                 <span id="stock-text"></span>
             </p>
 
+            {% if produto.estoque_total == 0 %}
+              {% if current_user.is_authenticated %}
+                <button class="product-detail__add-btn product-detail__add-btn--encomenda"
+                        id="btn-encomenda"
+                        data-product-id="{{ produto.id }}">
+                  Solicitar Sob Encomenda
+                </button>
+                <p class="product-detail__encomenda-info">Avise-me quando estiver disponível</p>
+              {% else %}
+                <a href="{{ url_for('auth.login', next=request.path + '?solicitar_encomenda=1') }}"
+                   id="link-encomenda-login"
+                   class="product-detail__add-btn product-detail__add-btn--encomenda"
+                   style="display:block;text-align:center;text-decoration:none;"
+                   onclick="return solicitarEncomendaLogin(event)">
+                  Solicitar Sob Encomenda
+                </a>
+                <p class="product-detail__encomenda-info">Faça login para receber o aviso por e-mail</p>
+              {% endif %}
+            {% else %}
             <button class="product-detail__add-btn"
                     data-product-id="{{ produto.id }}"
-                    id="add-to-cart-btn"
-                    {% if produto.estoque_total == 0 %}disabled{% endif %}>
-                {% if produto.estoque_total == 0 %}Sem Estoque{% else %}Adicionar ao Carrinho{% endif %}
+                    id="add-to-cart-btn">
+                Adicionar ao Carrinho
             </button>
+            {% if current_user.is_authenticated %}
+              <button class="product-detail__add-btn product-detail__add-btn--encomenda"
+                      id="btn-encomenda"
+                      data-product-id="{{ produto.id }}"
+                      style="display:none;">
+                Solicitar Sob Encomenda
+              </button>
+              <p class="product-detail__encomenda-info" id="encomenda-info-parcial" style="display:none;">Avise-me quando estiver disponível</p>
+            {% else %}
+              <a href="{{ url_for('auth.login', next=request.path + '?solicitar_encomenda=1') }}"
+                 id="link-encomenda-parcial"
+                 class="product-detail__add-btn product-detail__add-btn--encomenda"
+                 style="display:none;text-align:center;text-decoration:none;"
+                 onclick="return solicitarEncomendaLogin(event)">
+                Solicitar Sob Encomenda
+              </a>
+              <p class="product-detail__encomenda-info" id="encomenda-info-parcial" style="display:none;">Faça login para receber o aviso por e-mail</p>
+            {% endif %}
+            {% endif %}
             {% else %}
             <p class="product-detail__stock {% if produto.estoque_total > 0 %}product-detail__stock--available{% else %}product-detail__stock--unavailable{% endif %}"
                style="{% if produto.estoque_total > 0 %}color: #10B981;{% else %}color: #DC2626;{% endif %} font-weight: 500; margin: 16px 0;">
                 {% if produto.estoque_total > 0 %}Em estoque{% else %}Esgotado{% endif %}
             </p>
+            {% if produto.estoque_total == 0 %}
+            <div class="product-detail__size-selector" style="margin: 16px 0;">
+                <label style="display:block;font-size:14px;font-weight:500;margin-bottom:12px;color:#1A1A1A;">Tamanho:</label>
+                <div id="size-buttons-sv" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+                <p id="size-error-sv" style="color:#DC2626;font-size:13px;margin-top:8px;display:none;">
+                    Por favor, selecione um tamanho
+                </p>
+            </div>
+              {% if current_user.is_authenticated %}
+                <button class="product-detail__add-btn product-detail__add-btn--encomenda"
+                        id="btn-encomenda"
+                        data-product-id="{{ produto.id }}">
+                  Solicitar Sob Encomenda
+                </button>
+                <p class="product-detail__encomenda-info">Avise-me quando estiver disponível</p>
+              {% else %}
+                <a href="{{ url_for('auth.login', next=request.path + '?solicitar_encomenda=1') }}"
+                   id="link-encomenda-login"
+                   class="product-detail__add-btn product-detail__add-btn--encomenda"
+                   style="display:block;text-align:center;text-decoration:none;"
+                   onclick="return solicitarEncomendaLogin(event)">
+                  Solicitar Sob Encomenda
+                </a>
+                <p class="product-detail__encomenda-info">Faça login para receber o aviso por e-mail</p>
+              {% endif %}
+            {% else %}
             <button class="product-detail__add-btn"
-                    data-product-id="{{ produto.id }}"
-                    {% if produto.estoque_total == 0 %}disabled{% endif %}>
-                {% if produto.estoque_total == 0 %}Sem Estoque{% else %}Adicionar ao Carrinho{% endif %}
+                    data-product-id="{{ produto.id }}">
+                Adicionar ao Carrinho
             </button>
             {% endif %}
+            {% endif %}
+
+            <div id="encomenda-success" style="display:none;padding:20px 0;border-top:1px solid #E5E5E5;margin-top:16px;">
+                <p style="font-weight:600;font-size:15px;margin:0 0 8px 0;color:#1A1A1A;">Solicitação recebida com sucesso!</p>
+                <p style="font-size:14px;color:#4B4B4B;line-height:1.6;margin:0;">
+                    Sua peça foi registrada como sob encomenda.<br>
+                    Você receberá um e-mail quando o produto estiver disponível.<br>
+                    Assim que chegar, ele ficará reservado para você por <strong>7 dias</strong>.
+                </p>
+            </div>
 
             <div class="product-detail__description" style="margin-top: 32px;">{{ produto.descricao | safe }}</div>
         </div>
@@ -149,6 +221,9 @@
 .price-box__installments-list li strong { font-weight: 700; }
 .price-box__sem-juros { color: #15803D; font-size: 11px; font-weight: 600; margin-left: 4px; }
 .price-box__com-juros { color: #8B8B8B; font-size: 11px; margin-left: 4px; }
+.product-detail__add-btn--encomenda { background: #FAFAFA; color: #1A1A1A; border: 1px solid #1A1A1A; }
+.product-detail__add-btn--encomenda:hover { background: #1f2937; color: #FAFAFA; }
+.product-detail__encomenda-info { font-size: 12px; color: #8B8B8B; margin-top: 8px; text-align: center; }
 </style>
 <script>
 // Galeria com setas e thumbnails
@@ -189,16 +264,47 @@ function trocarImagem(url, thumbEl) {
     if (idx >= 0) irParaImagem(idx, thumbEl);
 }
 
-// Dados das variantes (apenas ativas)
+// Dados das variantes (todas, incluindo inativas)
 var variants = [
-    {% for v in produto.variantes if v.ativo %}
-    { id: {{ v.id }}, tamanho: "{{ v.tamanho }}", cor: "{{ v.cor }}", corHex: "{{ v.cor_hex }}", estoque: {{ v.estoque }} }{% if not loop.last %},{% endif %}
+    {% for v in produto.variantes %}
+    { id: {{ v.id }}, tamanho: "{{ v.tamanho }}", cor: "{{ v.cor }}", corHex: "{{ v.cor_hex }}", estoque: {{ v.estoque }}, ativo: {{ 'true' if v.ativo else 'false' }} }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
 
-var temCores = variants.some(function(v) { return v.cor !== ''; });
+var temCores = variants.some(function(v) { return v.cor !== '' && v.ativo; });
+var modoEncomenda = {{ 'true' if produto.variantes and produto.estoque_total == 0 else 'false' }};
 var selectedCor = null;
 var selectedVariantId = null;
+var selectedTamanho = null;
+var selectedTamanhoSV = null;
+var tamanhosPadrao = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+// ── Seletor de tamanho padrão (produto sem variantes, sem estoque) ─────────
+if (variants.length === 0 && {{ 'true' if produto.estoque_total == 0 else 'false' }}) {
+    var containerSV = document.getElementById('size-buttons-sv');
+    if (containerSV) {
+        tamanhosPadrao.forEach(function(tam) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = tam;
+            btn.className = 'size-btn';
+            btn.style.cssText = 'padding:12px 20px;border:1px solid #1A1A1A;background:#FAFAFA;color:#1A1A1A;cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;';
+            btn.addEventListener('click', function() {
+                containerSV.querySelectorAll('.size-btn').forEach(function(b) {
+                    b.style.border = '1px solid #1A1A1A';
+                    b.style.background = '#FAFAFA';
+                    b.style.color = '#1A1A1A';
+                });
+                this.style.border = '2px solid #C8A35F';
+                this.style.background = '#C8A35F';
+                this.style.color = 'white';
+                selectedTamanhoSV = tam;
+                document.getElementById('size-error-sv').style.display = 'none';
+            });
+            containerSV.appendChild(btn);
+        });
+    }
+}
 
 // ── Seletor de cor ────────────────────────────────────────
 if (temCores) {
@@ -208,7 +314,7 @@ if (temCores) {
     variants.forEach(function(v) {
         if (v.cor && !coresSeen[v.cor]) {
             coresSeen[v.cor] = v.corHex;
-            var corTemEstoque = variants.some(function(w) { return w.cor === v.cor && w.estoque > 0; });
+            var corTemEstoque = variants.some(function(w) { return w.cor === v.cor && w.estoque > 0 && w.ativo; }) || modoEncomenda;
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.dataset.cor = v.cor;
@@ -252,6 +358,16 @@ function selecionarCor(cor) {
     // Re-renderizar tamanhos para esta cor
     renderSizes(cor);
 
+    // Resetar botões de ação e status ao trocar de cor
+    var stockStatus = document.getElementById('stock-status');
+    if (stockStatus) stockStatus.style.display = 'none';
+    var btnCart = document.getElementById('add-to-cart-btn');
+    var btnEnc = document.getElementById('btn-encomenda') || document.getElementById('link-encomenda-parcial');
+    var infoEnc = document.getElementById('encomenda-info-parcial');
+    if (btnCart) btnCart.style.display = '';
+    if (btnEnc) btnEnc.style.display = 'none';
+    if (infoEnc) infoEnc.style.display = 'none';
+
     // Filtrar galeria por cor
     atualizarGaleriaParaCor(cor);
 }
@@ -262,54 +378,81 @@ function renderSizes(filtrarPorCor) {
     if (!container) return;
     container.innerHTML = '';
     selectedVariantId = null;
+    selectedTamanho = null;
 
-    var disponiveis = variants.filter(function(v) {
-        if (temCores) return v.cor === filtrarPorCor;
-        return true;
-    });
+    tamanhosPadrao.forEach(function(tam) {
+        var v = null;
+        for (var i = 0; i < variants.length; i++) {
+            var cond = temCores ? variants[i].cor === filtrarPorCor : true;
+            if (cond && variants[i].tamanho === tam) { v = variants[i]; break; }
+        }
+        var disponivel = v && v.ativo;
+        var emEstoque = disponivel && v.estoque > 0;
 
-    if (disponiveis.length === 0) {
-        container.innerHTML = '<span style="font-size:13px;color:#8B8B8B;">Nenhum tamanho disponível</span>';
-        return;
-    }
-
-    disponiveis.forEach(function(v) {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.textContent = v.tamanho || '—';
-        btn.dataset.variantId = v.id;
-        btn.dataset.estoque = v.estoque;
-        var disponivel = v.estoque > 0;
-        btn.disabled = !disponivel;
         btn.className = 'size-btn';
-        btn.style.cssText = 'padding:12px 20px;border:1px solid ' + (disponivel ? '#E5E5E5' : '#D1D5DB') + ';' +
-            'background:' + (disponivel ? 'white' : '#F3F4F6') + ';' +
-            'color:' + (disponivel ? '#1A1A1A' : '#9CA3AF') + ';' +
-            'cursor:' + (disponivel ? 'pointer' : 'not-allowed') + ';' +
-            'font-size:14px;font-weight:500;transition:all .2s;opacity:' + (disponivel ? '1' : '0.5') + ';';
+        btn.textContent = tam;
+        btn.disabled = false;
+
+        if (emEstoque) {
+            btn.style.cssText = 'padding:12px 20px;border:1px solid #E5E5E5;background:white;color:#1A1A1A;cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;';
+        } else {
+            btn.style.cssText = 'padding:12px 20px;border:1px solid #D1D5DB;background:#F3F4F6;color:#6B7280;cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;';
+        }
+
+        btn.dataset.tamanho = tam;
+        btn.dataset.emEstoque = emEstoque ? '1' : '0';
+        if (v) {
+            btn.dataset.variantId = v.id;
+            btn.dataset.estoque = v.estoque;
+        }
+
         btn.addEventListener('click', function() {
-            if (this.disabled) return;
-            container.querySelectorAll('.size-btn:not([disabled])').forEach(function(b) {
-                b.style.border = '1px solid #E5E5E5';
-                b.style.background = 'white';
-                b.style.color = '#1A1A1A';
+            container.querySelectorAll('.size-btn').forEach(function(b) {
+                if (b.dataset.emEstoque === '1') {
+                    b.style.border = '1px solid #E5E5E5';
+                    b.style.background = 'white';
+                    b.style.color = '#1A1A1A';
+                } else {
+                    b.style.border = '1px solid #D1D5DB';
+                    b.style.background = '#F3F4F6';
+                    b.style.color = '#6B7280';
+                }
             });
             this.style.border = '2px solid #C8A35F';
             this.style.background = '#C8A35F';
             this.style.color = 'white';
-            selectedVariantId = this.dataset.variantId;
-            var estq = parseInt(this.dataset.estoque);
+            selectedTamanho = this.dataset.tamanho || null;
+            selectedVariantId = this.dataset.variantId || null;
+            var estq = parseInt(this.dataset.estoque || '0');
             var stockStatus = document.getElementById('stock-status');
             var stockText = document.getElementById('stock-text');
             stockStatus.style.display = 'block';
-            if (estq > 0) {
-                stockStatus.className = 'product-detail__stock product-detail__stock--available';
-                stockStatus.style.color = '#10B981';
-                stockText.textContent = 'Em estoque';
-            } else {
+            if (modoEncomenda) {
                 stockStatus.className = 'product-detail__stock product-detail__stock--unavailable';
                 stockStatus.style.color = '#DC2626';
                 stockText.textContent = 'Esgotado';
+            } else if (estq > 0) {
+                stockStatus.className = 'product-detail__stock product-detail__stock--available';
+                stockStatus.style.color = '#10B981';
+                stockText.textContent = 'Em estoque';
+                var btnCart = document.getElementById('add-to-cart-btn');
+                var btnEnc = document.getElementById('btn-encomenda') || document.getElementById('link-encomenda-parcial');
+                var infoEnc = document.getElementById('encomenda-info-parcial');
+                if (btnCart) btnCart.style.display = '';
+                if (btnEnc) btnEnc.style.display = 'none';
+                if (infoEnc) infoEnc.style.display = 'none';
+            } else {
+                stockStatus.className = 'product-detail__stock product-detail__stock--unavailable';
+                stockStatus.style.color = '#C8A35F';
+                stockText.textContent = 'Disponível sob encomenda';
+                var btnCart = document.getElementById('add-to-cart-btn');
+                var btnEnc = document.getElementById('btn-encomenda') || document.getElementById('link-encomenda-parcial');
+                var infoEnc = document.getElementById('encomenda-info-parcial');
+                if (btnCart) btnCart.style.display = 'none';
+                if (btnEnc) btnEnc.style.display = '';
+                if (infoEnc) infoEnc.style.display = '';
             }
             document.getElementById('size-error').style.display = 'none';
         });
@@ -324,7 +467,7 @@ if (!temCores) {
 
 // ── Adicionar ao carrinho ─────────────────────────────────
 (function() {
-    var btn = document.getElementById('add-to-cart-btn') || document.querySelector('.product-detail__add-btn');
+    var btn = document.getElementById('add-to-cart-btn');
     if (!btn) return;
 
     var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
@@ -399,6 +542,101 @@ if (!temCores) {
             var lista = document.getElementById('parcelas-lista');
             if (lista) lista.innerHTML = '<li style="color:#8B8B8B">Indisponível no momento</li>';
         });
+})();
+
+// ── Solicitar Sob Encomenda ───────────────────────────────
+(function() {
+    var btnEncomenda = document.getElementById('btn-encomenda');
+    if (!btnEncomenda) return;
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    btnEncomenda.addEventListener('click', function() {
+        if (variants.length > 0 && !selectedTamanho) {
+            document.getElementById('size-error').style.display = 'block';
+            return;
+        }
+        if (variants.length === 0 && !selectedTamanhoSV) {
+            var errSV = document.getElementById('size-error-sv');
+            if (errSV) errSV.style.display = 'block';
+            return;
+        }
+        var productId = this.dataset.productId;
+        var btn = this;
+        btn.textContent = 'Registrando...';
+        btn.disabled = true;
+        var requestData = { product_id: parseInt(productId) };
+        if (selectedVariantId) requestData.variant_id = parseInt(selectedVariantId);
+        if (selectedTamanho && !selectedVariantId) requestData.tamanho = selectedTamanho;
+        if (selectedTamanhoSV) requestData.tamanho = selectedTamanhoSV;
+        fetch('/shop/solicitar-encomenda', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(requestData)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.sucesso) {
+                btn.style.display = 'none';
+                var info = btn.nextElementSibling; // .product-detail__encomenda-info
+                if (info) info.style.display = 'none';
+                var successDiv = document.getElementById('encomenda-success');
+                if (successDiv) successDiv.style.display = 'block';
+            } else {
+                btn.textContent = 'Solicitar Sob Encomenda';
+                btn.disabled = false;
+            }
+        })
+        .catch(function() {
+            btn.textContent = 'Solicitar Sob Encomenda';
+            btn.disabled = false;
+        });
+    });
+})();
+
+// Intercepta clique no link de encomenda para usuários não autenticados
+function solicitarEncomendaLogin(e) {
+    if (variants.length > 0 && !selectedTamanho) {
+        e.preventDefault();
+        document.getElementById('size-error').style.display = 'block';
+        return false;
+    }
+    if (variants.length === 0 && !selectedTamanhoSV) {
+        e.preventDefault();
+        var errSV = document.getElementById('size-error-sv');
+        if (errSV) errSV.style.display = 'block';
+        return false;
+    }
+    window.location.href = e.currentTarget.href.replace(
+        encodeURIComponent('?solicitar_encomenda=1'),
+        encodeURIComponent('?solicitar_encomenda=1' +
+            (selectedVariantId ? '&variant_id=' + selectedVariantId : '') +
+            (selectedTamanho && !selectedVariantId ? '&tamanho=' + encodeURIComponent(selectedTamanho) : '') +
+            (selectedTamanhoSV ? '&tamanho=' + encodeURIComponent(selectedTamanhoSV) : ''))
+    );
+    return false;
+}
+
+// Auto-dispara encomenda se voltou do login com ?solicitar_encomenda=1
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('solicitar_encomenda') === '1') {
+        var vid = params.get('variant_id');
+        var tam = params.get('tamanho');
+        if (vid) {
+            if (temCores) {
+                var variantData = variants.find(function(v) { return String(v.id) === vid; });
+                if (variantData) selecionarCor(variantData.cor);
+            }
+            var sizeBtn = document.querySelector('[data-variant-id="' + vid + '"]');
+            if (sizeBtn && !sizeBtn.disabled) sizeBtn.click();
+        } else if (tam) {
+            var allBtns = document.querySelectorAll('#size-buttons .size-btn, #size-buttons-sv .size-btn');
+            allBtns.forEach(function(b) {
+                if (b.dataset.tamanho === tam || b.textContent.trim() === tam) b.click();
+            });
+        }
+        var btnEncomenda = document.getElementById('btn-encomenda');
+        if (btnEncomenda) btnEncomenda.click();
+    }
 })();
 </script>
 {% endblock %}

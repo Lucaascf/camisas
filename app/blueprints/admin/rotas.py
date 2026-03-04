@@ -7,11 +7,12 @@ from urllib.parse import urlparse
 from flask import render_template, redirect, url_for, flash, request, session, jsonify, current_app
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from app import db, limiter
 from app.blueprints.admin import admin_bp
 from app.forms import ProductForm, CategoryForm, MarcaForm, TecidoForm
-from app.models import Cupom, Product, Category, Marca, Tecido, ProductImage, ProductImageURL, ProductVariant, Order, User, CartItem
+from app.models import Cupom, Product, Category, Marca, Tecido, ProductImage, ProductImageURL, ProductVariant, Order, User, CartItem, SolicitacaoEncomenda
 
 logger = logging.getLogger(__name__)
 
@@ -525,6 +526,7 @@ def salvar_variantes(id):
     if not dados or 'variantes' not in dados:
         return jsonify(sucesso=False, mensagem='Dados inválidos'), 400
 
+    era_sem_estoque = produto.estoque_total == 0
     variantes_dados = dados['variantes']
     variantes_criadas = []
 
@@ -613,6 +615,14 @@ def salvar_variantes(id):
                         })
 
         db.session.commit()
+
+        if era_sem_estoque and produto.estoque_total > 0:
+            solicitacoes = SolicitacaoEncomenda.query.filter_by(
+                product_id=id, notificado=False
+            ).options(joinedload(SolicitacaoEncomenda.user)).all()
+            if solicitacoes:
+                from app.blueprints.shop.email_service import enviar_emails_produto_disponivel
+                enviar_emails_produto_disponivel(produto, solicitacoes)
 
         return jsonify(
             sucesso=True,

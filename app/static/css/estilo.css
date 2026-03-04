@@ -560,6 +560,16 @@ h1, h2, h3, h4 {
 .product-card__badge--out-of-stock {
     background-color: #9CA3AF;
     color: #FAFAFA;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.product-card__badge-sub {
+    font-size: 8px;
+    letter-spacing: 1px;
+    opacity: 0.9;
+    display: block;
+    text-transform: uppercase;
 }
 
 .product-card__actions {
@@ -1286,6 +1296,16 @@ h1, h2, h3, h4 {
     color: #FAFAFA;
     cursor: not-allowed;
     opacity: 1;
+}
+
+.size-btn--sob-encomenda {
+    border: 1px dashed rgba(200, 163, 95, 0.6) !important;
+    background: #FFFBF4 !important;
+    color: #8B6A3E !important;
+}
+.size-btn--sob-encomenda:hover {
+    border-color: #C8A35F !important;
+    background: #FFF5E4 !important;
 }
 
 /* ========== CARRINHO ========== */

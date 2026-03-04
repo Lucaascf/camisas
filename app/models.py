@@ -426,6 +426,28 @@ class SiteConfig(db.Model):
         db.session.commit()
 
 
+class SolicitacaoEncomenda(db.Model):
+    """Solicitação de aviso quando produto voltar ao estoque."""
+
+    __tablename__ = 'solicitacoes_encomenda'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id    = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    tamanho       = db.Column(db.String(20), nullable=True)
+    criado_em     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    notificado    = db.Column(db.Boolean, default=False)
+    notificado_em = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'product_id', name='uq_encomenda_user_product'),)
+
+    user    = db.relationship('User', backref='solicitacoes_encomenda')
+    product = db.relationship('Product', backref='solicitacoes_encomenda')
+
+    def __repr__(self):
+        return f'<SolicitacaoEncomenda user={self.user_id} product={self.product_id}>'
+
+
 class EnderecoSalvo(db.Model):
     """Endereço de entrega salvo pelo usuário."""
 

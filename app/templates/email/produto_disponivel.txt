@@ -1,0 +1,19 @@
+FERRATO — Produto Disponível
+=============================
+
+Olá, {{ user.nome }}.
+
+O produto que você estava esperando voltou ao estoque!
+
+{{ produto.nome }}
+
+Aproveite — o estoque pode ser limitado.
+
+Ver produto:
+{{ url_for('shop.produto', slug=produto.slug, _external=True) }}
+
+Você foi um dos primeiros a saber.
+
+---
+FERRATO — Camisaria de Luxo
+contato@ferrato.com.br

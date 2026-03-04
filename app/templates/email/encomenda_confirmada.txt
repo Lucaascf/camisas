@@ -1,0 +1,15 @@
+FERRATO — Aviso Registrado
+==========================
+
+Olá, {{ user.nome }}.
+
+Registramos seu interesse em: {{ produto.nome }}
+{% if tamanho %}Tamanho solicitado: {{ tamanho }}{% endif %}
+
+Sua peça foi registrada como sob encomenda.
+Você receberá um e-mail quando o produto estiver disponível.
+Assim que chegar, ele ficará reservado para você por 7 dias.
+
+---
+FERRATO — Camisaria de Luxo
+contato@ferrato.com.br

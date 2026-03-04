@@ -68,7 +68,10 @@
                         </div>
                     {% endif %}
                     {% if produto.estoque_total == 0 %}
-                    <span class="product-card__badge product-card__badge--out-of-stock">Sem Estoque</span>
+                    <span class="product-card__badge product-card__badge--out-of-stock">
+                        Esgotado<br>
+                        <span class="product-card__badge-sub">Disponível sob encomenda</span>
+                    </span>
                     {% elif produto.novo %}
                     <span class="product-card__badge product-card__badge--new">Novo</span>
                     {% elif produto.em_promocao %}

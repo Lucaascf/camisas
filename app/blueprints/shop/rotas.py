@@ -1,12 +1,13 @@
 """Rotas do blueprint shop."""
 
 from flask import abort, jsonify, render_template, request
+from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app import db, limiter
 from app.blueprints.shop import shop_bp
-from app.models import Category, Marca, Tecido, Product, ProductVariant
+from app.models import Category, Marca, Tecido, Product, ProductVariant, SolicitacaoEncomenda
 
 PRODUTOS_POR_PAGINA = 12
 
@@ -189,6 +190,48 @@ def parcelas():
         return jsonify([])
     resultado = calcular_parcelas(preco)
     return jsonify(resultado)
+
+
+@shop_bp.route('/solicitar-encomenda', methods=['POST'])
+@login_required
+def solicitar_encomenda():
+    """Registra interesse do usuário em produto sem estoque."""
+    data = request.get_json()
+    product_id = data.get('product_id') if data else None
+    if not product_id:
+        return jsonify(sucesso=False, mensagem='product_id obrigatório'), 400
+
+    produto = Product.query.get_or_404(product_id)
+
+    variant_id = data.get('variant_id') if data else None
+    tamanho = None
+    if variant_id:
+        v = ProductVariant.query.get(variant_id)
+        if v and v.product_id == product_id:
+            if v.estoque > 0:
+                return jsonify(sucesso=False, mensagem='Este tamanho está disponível para compra.')
+            tamanho = v.tamanho
+    elif data:
+        tamanho = data.get('tamanho') or None
+        if tamanho:
+            v_disp = ProductVariant.query.filter_by(
+                product_id=product_id, tamanho=tamanho, ativo=True
+            ).filter(ProductVariant.estoque > 0).first()
+            if v_disp:
+                return jsonify(sucesso=False, mensagem='Este tamanho está disponível para compra.')
+
+    existente = SolicitacaoEncomenda.query.filter_by(
+        user_id=current_user.id, product_id=product_id
+    ).first()
+
+    if not existente:
+        solicitacao = SolicitacaoEncomenda(user_id=current_user.id, product_id=product_id, tamanho=tamanho)
+        db.session.add(solicitacao)
+        db.session.commit()
+        from app.blueprints.shop.email_service import enviar_email_encomenda_confirmada
+        enviar_email_encomenda_confirmada(current_user, produto, tamanho=tamanho)
+
+    return jsonify(sucesso=True)
 
 
 @shop_bp.route('/produto/<slug>')
