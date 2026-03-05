@@ -1,5 +1,7 @@
 """Formulários Flask-WTF da aplicação FERRATO."""
 
+import re
+
 from flask_wtf import FlaskForm
 from flask_wtf.file import MultipleFileField, FileField, FileAllowed
 from wtforms import StringField, PasswordField, BooleanField, TextAreaField, DecimalField, IntegerField, SelectField, HiddenField
@@ -20,6 +22,15 @@ class LoginForm(FlaskForm):
     lembrar = BooleanField('Lembrar-me')
 
 
+def _validar_forca_senha(form, field):
+    """Exige pelo menos 8 caracteres, uma letra e um número."""
+    senha = field.data or ''
+    if not re.search(r'[A-Za-z]', senha):
+        raise ValidationError('Senha deve conter pelo menos uma letra.')
+    if not re.search(r'\d', senha):
+        raise ValidationError('Senha deve conter pelo menos um número.')
+
+
 class RegistroForm(FlaskForm):
     """Formulário de registro de usuário."""
 
@@ -32,7 +43,8 @@ class RegistroForm(FlaskForm):
     ])
     senha = PasswordField('Senha', validators=[
         DataRequired(message='Senha é obrigatória'),
-        Length(min=6, message='Senha deve ter no mínimo 6 caracteres')
+        Length(min=8, message='Senha deve ter no mínimo 8 caracteres'),
+        _validar_forca_senha,
     ])
     confirmar_senha = PasswordField('Confirmar Senha', validators=[
         DataRequired(message='Confirmação de senha é obrigatória'),
@@ -57,7 +69,8 @@ class RegistroEmailForm(FlaskForm):
     ])
     senha = PasswordField('Senha', validators=[
         DataRequired(message='Senha é obrigatória'),
-        Length(min=6, message='Senha deve ter no mínimo 6 caracteres')
+        Length(min=8, message='Senha deve ter no mínimo 8 caracteres'),
+        _validar_forca_senha,
     ])
     confirmar_senha = PasswordField('Confirmar Senha', validators=[
         DataRequired(message='Confirmação de senha é obrigatória'),
@@ -292,7 +305,8 @@ class RedefinirSenhaForm(FlaskForm):
 
     senha = PasswordField('Nova Senha', validators=[
         DataRequired(message='Senha é obrigatória'),
-        Length(min=6, message='Senha deve ter no mínimo 6 caracteres')
+        Length(min=8, message='Senha deve ter no mínimo 8 caracteres'),
+        _validar_forca_senha,
     ])
     confirmar_senha = PasswordField('Confirmar Nova Senha', validators=[
         DataRequired(message='Confirmação de senha é obrigatória'),

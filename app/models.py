@@ -250,6 +250,9 @@ class Order(db.Model):
     cupom_codigo   = db.Column(db.String(20), nullable=True)
     desconto_valor = db.Column(db.Float, default=0.0)
 
+    # Token de acesso para pedidos anônimos (evita IDOR por ID sequencial)
+    token_anonimo = db.Column(db.String(64), nullable=True, unique=True, index=True)
+
     # Logística
     codigo_rastreio = db.Column(db.String(100), nullable=True)
     codigo_cliente = db.Column(db.String(15), unique=True, nullable=True)

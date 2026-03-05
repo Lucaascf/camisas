@@ -27,19 +27,11 @@ def validar_assinatura_webhook(request) -> bool:
     """
     secret = current_app.config.get('MERCADOPAGO_WEBHOOK_SECRET', '')
     if not secret:
-        is_production = current_app.config.get('ENV', 'development') == 'production' \
-            or not current_app.debug
-        if is_production:
-            current_app.logger.error(
-                '[webhook] MERCADOPAGO_WEBHOOK_SECRET não configurado — '
-                'rejeitando chamada em produção. Configure a variável no .env.'
-            )
-            return False
-        current_app.logger.warning(
+        current_app.logger.error(
             '[webhook] MERCADOPAGO_WEBHOOK_SECRET não configurado — '
-            'aceitando em modo desenvolvimento.'
+            'rejeitando chamada. Configure a variável no .env.'
         )
-        return True
+        return False
 
     sig_header = request.headers.get('x-signature', '')
     if not sig_header:

@@ -4,11 +4,15 @@ from urllib.parse import urlparse
 
 from flask import render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, current_user
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db, limiter
 from app.blueprints.auth import auth_bp
 from app.forms import LoginForm, RegistroForm, RegistroEmailForm, VerificarEmailForm, EsqueceuSenhaForm, RedefinirSenhaForm
 from app.models import User, CartItem
+
+# Hash constante usado para evitar timing attack no login (não é uma senha real)
+_DUMMY_HASH = generate_password_hash('ferrato_timing_prevention_placeholder')
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -22,7 +26,9 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data.lower()).first()
 
-        if user and user.check_senha(form.senha.data):
+        # Sempre executar check_password_hash para evitar timing attack que revela se email existe
+        senha_ok = check_password_hash(user.senha_hash if user else _DUMMY_HASH, form.senha.data)
+        if user and senha_ok:
             login_user(user, remember=form.lembrar.data)
 
             # Merge do carrinho anônimo para o usuário autenticado
@@ -42,6 +48,7 @@ def login():
 
 
 @auth_bp.route('/registro', methods=['GET', 'POST'])
+@limiter.limit("10 per hour")
 def registro():
     """Página de registro - Etapa 1: Nome, Email e Senha."""
     if current_user.is_authenticated:
@@ -63,10 +70,9 @@ def registro():
         email_enviado = enviar_email_verificacao(email, token.codigo)
 
         if email_enviado:
-            # Armazenar dados na sessão para etapa 2 e reenvio
+            # Armazenar apenas dados não sensíveis na sessão (hash salvo no EmailVerificationToken)
             session['email_pendente'] = email
             session['nome_pendente'] = nome
-            session['senha_hash_pendente'] = generate_password_hash(senha)
 
             flash(
                 f'Código de verificação enviado para {email}. '
@@ -93,9 +99,8 @@ def verificar_email():
     # Verificar se há dados pendentes na sessão
     email = session.get('email_pendente')
     nome = session.get('nome_pendente')
-    senha_hash = session.get('senha_hash_pendente')
 
-    if not all([email, nome, senha_hash]):
+    if not all([email, nome]):
         flash('Sessão expirada. Por favor, inicie o registro novamente.', 'error')
         return redirect(url_for('auth.registro'))
 
@@ -108,12 +113,12 @@ def verificar_email():
         sucesso, mensagem, token = verificar_codigo(email, codigo)
 
         if sucesso:
-            # Criar usuário com dados da sessão
+            # Criar usuário usando o hash armazenado no token (não na sessão)
             user = User(
                 nome=nome,
                 email=email
             )
-            user.senha_hash = senha_hash  # Usar hash armazenado na sessão
+            user.senha_hash = token.senha_hash  # Hash vem do EmailVerificationToken no banco
 
             db.session.add(user)
             db.session.commit()
@@ -127,7 +132,6 @@ def verificar_email():
             # Limpar sessão
             session.pop('email_pendente', None)
             session.pop('nome_pendente', None)
-            session.pop('senha_hash_pendente', None)
 
             flash('Conta criada com sucesso! Você já está logado.', 'success')
             return redirect(url_for('main.home'))
@@ -142,20 +146,29 @@ def verificar_email():
 def reenviar_codigo():
     """Reenvia código de verificação."""
     from app.blueprints.auth.email_service import criar_token_verificacao, enviar_email_verificacao
-    from werkzeug.security import generate_password_hash
+    from app.models import EmailVerificationToken
 
     email = session.get('email_pendente')
     nome = session.get('nome_pendente')
-    senha_hash = session.get('senha_hash_pendente')
 
-    if not all([email, nome, senha_hash]):
+    if not all([email, nome]):
         flash('Sessão expirada. Por favor, inicie o registro novamente.', 'error')
         return redirect(url_for('auth.registro'))
 
-    # Criar novo token (remove o anterior automaticamente)
-    # Nota: usar senha_hash já existente, não precisamos da senha original
-    token = criar_token_verificacao(email, nome, 'dummy')  # Senha dummy
-    token.senha_hash = senha_hash  # Sobrescrever com hash correto da sessão
+    # Recuperar o hash da senha do token existente no banco antes de deletá-lo
+    token_existente = EmailVerificationToken.query.filter_by(
+        email=email, verificado=False
+    ).order_by(EmailVerificationToken.criado_em.desc()).first()
+
+    if not token_existente:
+        flash('Sessão expirada. Por favor, inicie o registro novamente.', 'error')
+        return redirect(url_for('auth.registro'))
+
+    senha_hash_salvo = token_existente.senha_hash
+
+    # Criar novo token (remove o anterior automaticamente via criar_token_verificacao)
+    token = criar_token_verificacao(email, nome, 'dummy')  # senha dummy — será sobrescrita
+    token.senha_hash = senha_hash_salvo  # Restaurar hash original do banco
     db.session.commit()
 
     # Enviar novo código

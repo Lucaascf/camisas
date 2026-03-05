@@ -1,8 +1,11 @@
 """Rotas do painel administrativo."""
 
+import hashlib
 import logging
 import re
+import secrets as _secrets
 from urllib.parse import urlparse
+from werkzeug.utils import secure_filename
 
 import nh3
 
@@ -33,6 +36,25 @@ ALLOWED_IMAGE_MIMES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
+def _validar_magic_bytes(data: bytes) -> bool:
+    """Valida se os bytes iniciais do arquivo correspondem a uma imagem real."""
+    if data[:3] == b'\xff\xd8\xff':  # JPEG
+        return True
+    if data[:8] == b'\x89PNG\r\n\x1a\n':  # PNG
+        return True
+    if data[:6] in (b'GIF87a', b'GIF89a'):  # GIF
+        return True
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':  # WebP
+        return True
+    return False
+
+
+def _admin_fingerprint():
+    """Gera fingerprint de sessão admin baseado em IP + User-Agent."""
+    raw = f"{request.remote_addr}:{request.headers.get('User-Agent', '')}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
 def _slug_unico(model_cls, base_slug, exclude_id=None):
     """Garante unicidade do slug adicionando sufixo numérico se necessário."""
     slug = base_slug
@@ -54,6 +76,11 @@ def verificar_acesso_admin():
         return
     if not session.get('admin_autenticado'):
         return redirect(url_for('admin.login_admin'))
+    # Validar fingerprint para detectar session hijacking
+    if session.get('admin_fingerprint') != _admin_fingerprint():
+        session.pop('admin_autenticado', None)
+        session.pop('admin_fingerprint', None)
+        return redirect(url_for('admin.login_admin'))
 
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
@@ -65,11 +92,14 @@ def login_admin():
     if request.method == 'POST':
         chave = request.form.get('chave', '')
         admin_key = current_app.config.get('ADMIN_ACCESS_KEY', '')
-        if not admin_key or chave != admin_key:
+        if not admin_key or not _secrets.compare_digest(chave, admin_key):
+            current_app.logger.warning('[ADMIN] Tentativa de login falhou de IP %s', request.remote_addr)
             erro = 'Chave de acesso inválida.'
         else:
             session.clear()
             session['admin_autenticado'] = True
+            session['admin_fingerprint'] = _admin_fingerprint()
+            current_app.logger.warning('[ADMIN] Login bem-sucedido de IP %s', request.remote_addr)
             return redirect(url_for('admin.dashboard'))
     return render_template('admin/login.html', erro=erro)
 
@@ -255,16 +285,16 @@ def novo_produto():
         if arquivos:
             for ordem, arquivo in enumerate(arquivos):
                 if arquivo and arquivo.filename:
-                    if arquivo.mimetype not in ALLOWED_IMAGE_MIMES:
+                    data = arquivo.read()
+                    if not _validar_magic_bytes(data):
                         flash(f'Formato não permitido: {arquivo.filename}', 'error')
                         return redirect(url_for('admin.criar_produto'))
-                    data = arquivo.read()
                     if len(data) > MAX_IMAGE_SIZE:
                         flash(f'Arquivo muito grande: {arquivo.filename} (máx 10MB)', 'error')
                         return redirect(url_for('admin.criar_produto'))
                     imagem = ProductImage(
                         product_id=produto.id,
-                        filename=arquivo.filename,
+                        filename=secure_filename(arquivo.filename),
                         mimetype=arquivo.mimetype,
                         data=data,
                         ordem=ordem
@@ -335,16 +365,16 @@ def editar_produto(id):
 
             for idx, arquivo in enumerate(arquivos):
                 if arquivo and arquivo.filename:
-                    if arquivo.mimetype not in ALLOWED_IMAGE_MIMES:
+                    data = arquivo.read()
+                    if not _validar_magic_bytes(data):
                         flash(f'Formato não permitido: {arquivo.filename}', 'error')
                         return redirect(url_for('admin.editar_produto', id=produto.id))
-                    data = arquivo.read()
                     if len(data) > MAX_IMAGE_SIZE:
                         flash(f'Arquivo muito grande: {arquivo.filename} (máx 10MB)', 'error')
                         return redirect(url_for('admin.editar_produto', id=produto.id))
                     imagem = ProductImage(
                         product_id=produto.id,
-                        filename=arquivo.filename,
+                        filename=secure_filename(arquivo.filename),
                         mimetype=arquivo.mimetype,
                         data=data,
                         ordem=max_ordem + idx + 1
@@ -429,16 +459,16 @@ def adicionar_imagens(id):
 
     for idx, arquivo in enumerate(arquivos):
         if arquivo and arquivo.filename:
-            if arquivo.mimetype not in ALLOWED_IMAGE_MIMES:
+            data = arquivo.read()
+            if not _validar_magic_bytes(data):
                 flash(f'Formato não permitido: {arquivo.filename}', 'error')
                 return redirect(url_for('admin.editar_produto', id=id))
-            data = arquivo.read()
             if len(data) > MAX_IMAGE_SIZE:
                 flash(f'Arquivo muito grande: {arquivo.filename} (máx 10MB)', 'error')
                 return redirect(url_for('admin.editar_produto', id=id))
             imagem = ProductImage(
                 product_id=produto.id,
-                filename=arquivo.filename,
+                filename=secure_filename(arquivo.filename),
                 mimetype=arquivo.mimetype,
                 data=data,
                 ordem=max_ordem + idx + 1

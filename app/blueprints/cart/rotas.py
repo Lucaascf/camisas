@@ -142,17 +142,13 @@ def atualizar():
     if item_id is None or quantidade is None:
         return jsonify(sucesso=False, mensagem='Dados incompletos.'), 400
 
-    item = CartItem.query.get(item_id)
+    # Verificar ownership diretamente na query (evita IDOR)
+    if current_user.is_authenticated:
+        item = CartItem.query.filter_by(id=item_id, user_id=current_user.id).first()
+    else:
+        item = CartItem.query.filter_by(id=item_id, session_id=obter_session_id()).first()
     if not item:
         return jsonify(sucesso=False, mensagem='Item não encontrado.'), 404
-
-    # Verificar que o item pertence à sessão atual
-    if current_user.is_authenticated:
-        if item.user_id != current_user.id:
-            return jsonify(sucesso=False, mensagem='Acesso negado.'), 403
-    else:
-        if item.session_id != obter_session_id():
-            return jsonify(sucesso=False, mensagem='Acesso negado.'), 403
 
     if quantidade < 1:
         db.session.delete(item)
@@ -194,17 +190,13 @@ def atualizar():
 @limiter.limit("30 per minute")
 def remover(item_id):
     """Remove um item do carrinho (AJAX)."""
-    item = CartItem.query.get(item_id)
+    # Verificar ownership diretamente na query (evita IDOR)
+    if current_user.is_authenticated:
+        item = CartItem.query.filter_by(id=item_id, user_id=current_user.id).first()
+    else:
+        item = CartItem.query.filter_by(id=item_id, session_id=obter_session_id()).first()
     if not item:
         return jsonify(sucesso=False, mensagem='Item não encontrado.'), 404
-
-    # Verificar que o item pertence à sessão atual
-    if current_user.is_authenticated:
-        if item.user_id != current_user.id:
-            return jsonify(sucesso=False, mensagem='Acesso negado.'), 403
-    else:
-        if item.session_id != obter_session_id():
-            return jsonify(sucesso=False, mensagem='Acesso negado.'), 403
 
     db.session.delete(item)
     db.session.commit()
@@ -225,10 +217,6 @@ def aplicar_cupom():
     """Valida e aplica um cupom de desconto (AJAX)."""
     dados = request.get_json() or {}
     codigo = (dados.get('codigo') or '').strip().upper()
-    try:
-        subtotal = max(0.0, float(dados.get('subtotal', 0)))
-    except (ValueError, TypeError):
-        return jsonify({'valido': False, 'mensagem': 'Dados inválidos.'}), 400
 
     cupom = Cupom.query.filter_by(codigo=codigo, ativo=True).first()
     agora = datetime.now(timezone.utc)
@@ -242,6 +230,9 @@ def aplicar_cupom():
     if cupom.usos_maximos and cupom.usos_atuais >= cupom.usos_maximos:
         return jsonify({'valido': False, 'mensagem': 'Cupom esgotado.'})
 
+    # Recalcular subtotal a partir do banco — nunca confiar no valor enviado pelo cliente
+    itens = obter_itens_carrinho()
+    subtotal = sum(item.product.preco_final * item.quantidade for item in itens)
     desconto = round(subtotal * cupom.desconto_percentual / 100, 2)
     return jsonify({
         'valido': True,
@@ -432,6 +423,7 @@ def processar_pagamento():
         desconto_valor=desconto_valor,
         status='aguardando_pagamento',
     )
+    pedido.token_anonimo = secrets.token_urlsafe(32)
     db.session.add(pedido)
     db.session.flush()
 
@@ -452,6 +444,7 @@ def processar_pagamento():
 
     db.session.commit()
     session['ultimo_pedido_id'] = pedido.id
+    session['ultimo_pedido_token'] = pedido.token_anonimo
 
     # Salvar endereço (usuários autenticados)
     if current_user.is_authenticated and form_data.get('salvar_endereco') == '1':
@@ -593,7 +586,8 @@ def pix_status(order_id):
     elif pedido.user_id is not None:
         return jsonify(status='error'), 403
     else:
-        if pedido.id != session.get('ultimo_pedido_id'):
+        token_sessao = session.get('ultimo_pedido_token')
+        if not token_sessao or not pedido.token_anonimo or not secrets.compare_digest(str(pedido.token_anonimo), str(token_sessao)):
             return jsonify(status='error'), 403
 
     # Se ainda pendente e temos o payment_id, consultar MP
@@ -622,7 +616,8 @@ def regenerar_pix(order_id):
     elif pedido.user_id is not None:
         return jsonify(ok=False, error='Acesso negado'), 403
     else:
-        if pedido.id != session.get('ultimo_pedido_id'):
+        token_sessao = session.get('ultimo_pedido_token')
+        if not token_sessao or not pedido.token_anonimo or not secrets.compare_digest(str(pedido.token_anonimo), str(token_sessao)):
             return jsonify(ok=False, error='Acesso negado'), 403
 
     if pedido.status not in ('aguardando_pagamento', 'cancelado'):
@@ -668,8 +663,9 @@ def confirmacao(order_id):
         flash('Faça login para ver este pedido.', 'error')
         return redirect(url_for('auth.login'))
     else:
-        # Pedido anônimo — validar pelo order_id salvo na sessão
-        if pedido.id != session.get('ultimo_pedido_id'):
+        # Pedido anônimo — validar por token seguro (evita IDOR por ID sequencial)
+        token_sessao = session.get('ultimo_pedido_token')
+        if not token_sessao or not pedido.token_anonimo or not secrets.compare_digest(str(pedido.token_anonimo), str(token_sessao)):
             flash('Pedido não encontrado.', 'error')
             return redirect(url_for('main.home'))
 
@@ -688,6 +684,10 @@ def confirmacao(order_id):
         try:
             if payment_id_param:
                 resultado = mercadopago_service.consultar_pagamento_por_id(payment_id_param)
+                # Validar que o pagamento pertence a este pedido (evita payment_id injection)
+                if resultado and resultado.get('order_id') != pedido.id:
+                    logger.warning('[CONFIRMACAO] payment_id %s não pertence ao pedido %s', payment_id_param, pedido.id)
+                    resultado = None
             elif pedido.mercadopago_preference_id:
                 resultado = mercadopago_service.consultar_pagamento(pedido.mercadopago_preference_id)
             else:
